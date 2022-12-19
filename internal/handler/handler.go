@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/Krabik6/meal-schedule/internal/service"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 type Handler struct {
@@ -12,12 +11,6 @@ type Handler struct {
 
 func NewHandler(services *service.Service) *Handler {
 	return &Handler{services: *services}
-}
-
-func signup(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "signup",
-	})
 }
 
 func (h *Handler) InitRoutes() *gin.Engine {
@@ -31,9 +24,9 @@ func (h *Handler) InitRoutes() *gin.Engine {
 
 	recipes := router.Group("/recipes")
 	{
-		recipes.POST("/", h.addRecipe)
+		recipes.POST("/", h.createRecipe)
 		recipes.GET("/", h.getAllRecipes)
-		recipes.GET("/:id", h.addRecipe)
+		recipes.GET("/:id", h.getRecipeById)
 		recipes.PUT("/:id", h.updateRecipe)
 		recipes.DELETE("/:id", h.deleteRecipe)
 	}

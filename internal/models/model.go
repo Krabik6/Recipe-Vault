@@ -5,3 +5,8 @@ type Recipe struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
+
+type UpdateRecipeInput struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+}

@@ -23,11 +23,27 @@ func main() {
 		log.Fatalf("db %e", err)
 	}
 
-	services := service.NewService(db)
+	repos := repository.NewRepository(db)
+	services := service.NewService(repos)
 	handlers := handler.NewHandler(services)
 	srv := new(apiserver.Server)
 
 	if err := srv.Run("8000", handlers.InitRoutes()); err != nil {
 		log.Fatalf("error occured while running http server: %s", err.Error())
 	}
+
+	//err = repository.CreateRecipe(models.Recipe{
+	//	Id:          0,
+	//	Name:        "borsh",
+	//	Description: "russian soup",
+	//}, db)
+	//
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//_, err = repository.GetRecipeById(db)
+	//if err != nil {
+	//	panic(err)
+	//}
 }

@@ -1,5 +1,4 @@
 version: '3.9'
-
 services:
   meal-schedule:
     build: ./
@@ -15,30 +14,19 @@ services:
   db:
     restart: always
     image: postgres:latest
-    networks:
-      new:
-        aliases:
-          - database
     volumes:
       - ./.database/postgres/data:/var/lib/postgresql/data
     environment:
       - POSTGRES_PASSWORD=qwerty
     ports:
-      - "5432:5432"
+      - 5436:5432
 
   migrate:
     image: migrate/migrate
-    networks:
-      - new
-
     depends_on:
       - db
     volumes:
-      - .:/migration
-    command: ["-path", "./migration", "-database",  "postgres://postgres:qwerty@database:5432/postgres?sslmode=disable", "up", "2"]
-    links:
-      - db
+      - ./migrations:/migrations
+    command: ["-path", "migrations", "-database",  "postgres://postgres:qwerty@db:5432/postgres?sslmode=disable", "up", "3"]
 
 
-networks:
-  new:

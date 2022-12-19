@@ -1,16 +1,24 @@
 package repository
 
-import "database/sql"
+import (
+	"github.com/Krabik6/meal-schedule/internal/models"
+	"github.com/jmoiron/sqlx"
+)
 
-type Authorization struct {
+type Recipes interface {
+	CreateRecipe(userId int, recipe models.Recipe) error
+	GetRecipeById(userId, id int) (models.Recipe, error)
+	GetAllRecipes(userId int) ([]models.Recipe, error)
+	UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error
+	DeleteRecipe(userId, id int) error
 }
 
 type Repository struct {
-	Authorization
+	Recipes
 }
 
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		Authorization: Authorization{},
+		Recipes: NewRecipesPostgres(db),
 	}
 }
