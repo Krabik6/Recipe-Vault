@@ -17,3 +17,4 @@ RUN go mod download
 RUN go build -o meal-schedule ./cmd/main.go
 
 CMD ["./meal-schedule"]
+

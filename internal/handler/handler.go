@@ -25,9 +25,10 @@ func (h *Handler) InitRoutes() *gin.Engine {
 
 	auth := router.Group("/auth")
 	{
-		auth.GET("/sign-up", h.signUp)
-		auth.GET("/sign-in", h.signIn)
+		auth.POST("/sign-up", h.signUp)
+		auth.POST("/sign-in", h.signIn)
 	}
+
 	recipes := router.Group("/recipes")
 	{
 		recipes.POST("/", h.addRecipe)
@@ -35,7 +36,16 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		recipes.GET("/:id", h.addRecipe)
 		recipes.PUT("/:id", h.updateRecipe)
 		recipes.DELETE("/:id", h.deleteRecipe)
-
 	}
+
+	schedule := router.Group("schedule")
+	{
+		schedule.POST("/:date")
+		schedule.DELETE("/:date")
+		schedule.PUT("/:date")
+		schedule.GET("/")
+		schedule.GET("/:date")
+	}
+
 	return router
 }

@@ -5,3 +5,9 @@ CREATE TABLE users
     password TEXT not null
 );
 
+CREATE TABLE recipes
+(
+  id serial primary key,
+  name text not null,
+  description text
+);
