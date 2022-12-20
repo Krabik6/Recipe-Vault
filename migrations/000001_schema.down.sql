@@ -1,3 +1,9 @@
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS recipes;
 
+DROP TABLE IF EXISTS schedule;
+DROP TABLE IF EXISTS user_schedule;
+DROP TABLE IF EXISTS user_recipe;
+
+
+

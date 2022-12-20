@@ -6,11 +6,11 @@ import (
 )
 
 const (
-	usersTable      = "users"
-	todoListTable   = "todo_lists"
-	usersListsTable = "users_lists"
-	todoItemsTable  = "todo_items"
-	listsItemsTable = "lists_items"
+	userTable         = "users"
+	scheduleTable     = "schedule"
+	recipeTable       = "recipes"
+	userScheduleTable = "user_schedule"
+	userRecipeTable   = "users_recipe"
 )
 
 type Config struct {

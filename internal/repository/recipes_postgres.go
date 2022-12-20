@@ -18,8 +18,10 @@ func NewRecipesPostgres(db *sqlx.DB) *RecipesPostgres {
 }
 
 func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) error {
-	addRecipeQuery := fmt.Sprintf("INSERT INTO recipes (name, description) values ($1, $2)")
-	_, err := r.db.Exec(addRecipeQuery, recipe.Name, recipe.Description)
+	addRecipeQuery := fmt.Sprintf("INSERT INTO %s (title, description) values ($1, $2)", recipeTable)
+	log.Println(addRecipeQuery)
+
+	_, err := r.db.Exec(addRecipeQuery, recipe.Title, recipe.Description)
 	if err != nil {
 		log.Println(err)
 	}
@@ -29,24 +31,22 @@ func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) error {
 
 func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
 	output := models.Recipe{}
-	getRecipeByIdQuery := fmt.Sprintf("SELECT * FROM recipes WHERE id=$1")
+	getRecipeByIdQuery := fmt.Sprintf("SELECT * FROM %s WHERE id=$1", recipeTable)
 	err := r.db.Get(&output, getRecipeByIdQuery, id)
 	if err != nil {
 		return output, err
 	}
-	fmt.Println(output)
 
 	return output, err
 }
 
 func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 	output := []models.Recipe{}
-	getRecipeByIdQuery := fmt.Sprintf("SELECT * FROM recipes")
+	getRecipeByIdQuery := fmt.Sprintf("SELECT * FROM %s", recipeTable)
 	err := r.db.Select(&output, getRecipeByIdQuery)
 	if err != nil {
 		return output, err
 	}
-	fmt.Println(output)
 
 	return output, err
 }
@@ -55,9 +55,9 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 	args := make([]interface{}, 0)
 	argId := 1
 
-	if input.Name != nil {
-		setValues = append(setValues, fmt.Sprintf("name=$%d", argId))
-		args = append(args, *input.Name)
+	if input.Title != nil {
+		setValues = append(setValues, fmt.Sprintf("title=$%d", argId))
+		args = append(args, *input.Title)
 		argId++
 	}
 
@@ -69,14 +69,14 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 
 	setQuery := strings.Join(setValues, ", ")
 
-	query := fmt.Sprintf("UPDATE recipes SET %s WHERE id=%d", setQuery, id)
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id=%d", recipeTable, setQuery, id)
 	args = append(args)
 
 	_, err := r.db.Exec(query, args...)
 	return err
 }
 func (r *RecipesPostgres) DeleteRecipe(userId, id int) error {
-	query := fmt.Sprintf("DELETE FROM recipes WHERE id=$1")
+	query := fmt.Sprintf("DELETE FROM %s WHERE id=$1", recipeTable)
 	_, err := r.db.Exec(query, id)
 	return err
 

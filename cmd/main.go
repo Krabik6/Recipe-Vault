@@ -34,7 +34,7 @@ func main() {
 
 	//err = repository.CreateRecipe(models.Recipe{
 	//	Id:          0,
-	//	Name:        "borsh",
+	//	Title:        "borsh",
 	//	Description: "russian soup",
 	//}, db)
 	//
