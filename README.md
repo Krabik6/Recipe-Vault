@@ -1,4 +1,4 @@
-﻿# meal-schedule
+﻿# Meal-schedule
 Project launch using docker: 
 ```
 docker-compose up --build
