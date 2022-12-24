@@ -19,8 +19,8 @@ func (h *Handler) createRecipe(c *gin.Context) {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	c.JSON(http.StatusOK, statusResponse{"ok"})
+	// TODO return id
+	c.JSON(http.StatusOK, statusResponse{"id"})
 }
 
 func (h *Handler) getRecipeById(c *gin.Context) {

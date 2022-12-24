@@ -24,6 +24,7 @@ func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) error {
 	_, err := r.db.Exec(addRecipeQuery, recipe.Title, recipe.Description)
 	if err != nil {
 		log.Println(err)
+		return err
 	}
 
 	return err
@@ -50,6 +51,7 @@ func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 
 	return output, err
 }
+
 func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error {
 	setValues := make([]string, 0)
 	args := make([]interface{}, 0)

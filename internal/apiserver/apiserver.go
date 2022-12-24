@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -26,5 +27,7 @@ func (s *Server) Run(port string, handler http.Handler) error {
 
 // ShutDown ...
 func (s *Server) ShutDown(ctx context.Context) error {
+	fmt.Println("Hi Andrey!")
 	return s.httpServer.Shutdown(ctx)
+
 }

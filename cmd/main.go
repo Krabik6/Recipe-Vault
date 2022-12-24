@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"github.com/Krabik6/meal-schedule/internal/apiserver"
 	"github.com/Krabik6/meal-schedule/internal/handler"
 	"github.com/Krabik6/meal-schedule/internal/repository"
 	"github.com/Krabik6/meal-schedule/internal/service"
 	_ "github.com/lib/pq"
 	"log"
+	"strconv"
 )
 
 func main() {
@@ -26,11 +28,13 @@ func main() {
 	repos := repository.NewRepository(db)
 	services := service.NewService(repos)
 	handlers := handler.NewHandler(services)
-	srv := new(apiserver.Server)
+	server := new(apiserver.Server)
 
-	if err := srv.Run("8000", handlers.InitRoutes()); err != nil {
+	if err := server.Run("8000", handlers.InitRoutes()); err != nil {
 		log.Fatalf("error occured while running http server: %s", err.Error())
 	}
+
+	fmt.Println(strconv.Atoi("15"))
 
 	//err = repository.CreateRecipe(models.Recipe{
 	//	Id:          0,

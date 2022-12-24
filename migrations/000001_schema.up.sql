@@ -15,8 +15,10 @@ CREATE TABLE recipes
 CREATE TABLE schedule
 (
     id serial primary key,
-    title text not null,
-    description text
+    date_of date UNIQUE,
+    breakfast_id int references recipes (id) on delete cascade,
+    lunch_id int references recipes (id) on delete cascade,
+    dinner_id int references recipes (id) on delete cascade
 );
 
 CREATE TABLE user_schedule
@@ -31,3 +33,4 @@ CREATE TABLE user_recipe
     id serial primary key,
     user_id int references users (id) on delete cascade
 );
+

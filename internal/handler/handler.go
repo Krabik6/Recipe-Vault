@@ -31,13 +31,13 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		recipes.DELETE("/:id", h.deleteRecipe)
 	}
 
-	schedule := router.Group("schedule")
+	schedule := router.Group("/schedule")
 	{
-		schedule.POST("/:date")
-		schedule.DELETE("/:date")
-		schedule.PUT("/:date")
-		schedule.GET("/")
-		schedule.GET("/:date")
+		schedule.POST("/", h.fillSchedule)
+		schedule.GET("/all", h.getAllSchedule)
+		schedule.GET("/", h.getScheduleByDate)
+		schedule.PUT("/", h.updateSchedule)
+		schedule.DELETE("/", h.deleteSchedule)
 	}
 
 	return router

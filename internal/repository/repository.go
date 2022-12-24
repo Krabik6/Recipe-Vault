@@ -13,12 +13,22 @@ type Recipes interface {
 	DeleteRecipe(userId, id int) error
 }
 
+type Schedule interface {
+	FillSchedule(userId int, schedule models.Schedule) (int, error)
+	GetAllSchedule(userId int) ([]models.ScheduleOutput, error)
+	GetScheduleByDate(userId int, date string) (models.ScheduleOutput, error)
+	UpdateSchedule(userId int, date string, input models.UpdateScheduleInput) error
+	DeleteSchedule(userId int, date string) error
+}
+
 type Repository struct {
 	Recipes
+	Schedule
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		Recipes: NewRecipesPostgres(db),
+		Recipes:  NewRecipesPostgres(db),
+		Schedule: NewSchedulePostgres(db),
 	}
 }

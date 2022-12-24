@@ -1,9 +1,10 @@
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS recipes;
+DROP TABLE IF EXISTS users cascade;
+DROP TABLE IF  EXISTS recipes cascade;
 
-DROP TABLE IF EXISTS schedule;
-DROP TABLE IF EXISTS user_schedule;
-DROP TABLE IF EXISTS user_recipe;
+DROP TABLE IF EXISTS schedule cascade;
+DROP TABLE IF EXISTS user_schedule cascade;
+DROP TABLE IF EXISTS user_recipe cascade;
+
 
 
 
