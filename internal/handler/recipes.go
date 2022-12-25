@@ -14,13 +14,13 @@ func (h *Handler) createRecipe(c *gin.Context) {
 		return
 	}
 
-	err := h.services.Recipes.CreateRecipe(1, input)
+	id, err := h.services.Recipes.CreateRecipe(1, input)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	// TODO return id
-	c.JSON(http.StatusOK, statusResponse{"id"})
+	c.JSON(http.StatusOK, gin.H{"id": id})
 }
 
 func (h *Handler) getRecipeById(c *gin.Context) {

@@ -13,7 +13,7 @@ func NewRecipesService(repo repository.Recipes) *RecipesService {
 	return &RecipesService{repo: repo}
 }
 
-func (r *RecipesService) CreateRecipe(userId int, recipe models.Recipe) error {
+func (r *RecipesService) CreateRecipe(userId int, recipe models.Recipe) (int, error) {
 	return r.repo.CreateRecipe(userId, recipe)
 }
 func (r *RecipesService) GetRecipeById(userId, id int) (models.Recipe, error) {

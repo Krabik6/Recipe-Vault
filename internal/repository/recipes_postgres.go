@@ -5,7 +5,6 @@ import (
 	"github.com/Krabik6/meal-schedule/internal/models"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"log"
 	"strings"
 )
 
@@ -17,23 +16,27 @@ func NewRecipesPostgres(db *sqlx.DB) *RecipesPostgres {
 	return &RecipesPostgres{db: db}
 }
 
-func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) error {
-	addRecipeQuery := fmt.Sprintf("INSERT INTO %s (title, description) values ($1, $2)", recipeTable)
-	log.Println(addRecipeQuery)
+func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) (int, error) {
+	db := r.db
 
-	_, err := r.db.Exec(addRecipeQuery, recipe.Title, recipe.Description)
-	if err != nil {
-		log.Println(err)
-		return err
+	addRecipeQuery := fmt.Sprintf("INSERT INTO %s (title, description) values ($1, $2) RETURNING id", recipeTable)
+
+	row := db.QueryRow(addRecipeQuery, recipe.Title, recipe.Description)
+
+	var id int
+	if err := row.Scan(&id); err != nil {
+		return 0, err
 	}
 
-	return err
+	return id, nil
 }
 
 func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
+	db := r.db
+
 	output := models.Recipe{}
 	getRecipeByIdQuery := fmt.Sprintf("SELECT * FROM %s WHERE id=$1", recipeTable)
-	err := r.db.Get(&output, getRecipeByIdQuery, id)
+	err := db.Get(&output, getRecipeByIdQuery, id)
 	if err != nil {
 		return output, err
 	}
@@ -42,9 +45,11 @@ func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
 }
 
 func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
+	db := r.db
+
 	output := []models.Recipe{}
 	getRecipeByIdQuery := fmt.Sprintf("SELECT * FROM %s", recipeTable)
-	err := r.db.Select(&output, getRecipeByIdQuery)
+	err := db.Select(&output, getRecipeByIdQuery)
 	if err != nil {
 		return output, err
 	}
@@ -53,6 +58,8 @@ func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 }
 
 func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error {
+	db := r.db
+
 	setValues := make([]string, 0)
 	args := make([]interface{}, 0)
 	argId := 1
@@ -74,7 +81,8 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 	query := fmt.Sprintf("UPDATE %s SET %s WHERE id=%d", recipeTable, setQuery, id)
 	args = append(args)
 
-	_, err := r.db.Exec(query, args...)
+	_, err := db.Exec(query, args...)
+
 	return err
 }
 

@@ -9,7 +9,7 @@ type Authorization interface {
 }
 
 type Recipes interface {
-	CreateRecipe(userId int, recipe models.Recipe) error
+	CreateRecipe(userId int, recipe models.Recipe) (int, error)
 	GetRecipeById(userId, id int) (models.Recipe, error)
 	GetAllRecipes(userId int) ([]models.Recipe, error)
 	UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error
