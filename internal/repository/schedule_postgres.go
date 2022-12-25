@@ -18,8 +18,8 @@ func NewSchedulePostgres(db *sqlx.DB) *SchedulePostgres {
 
 func (s *SchedulePostgres) FillSchedule(userId int, schedule models.Schedule) (int, error) {
 	db := s.db
-	fillScheduleQuery := fmt.Sprintf("INSERT INTO %s (date_of, breakfast_id, lunch_id, dinner_id) values (date('%s'), $1, $2, $3) RETURNING id", scheduleTable, schedule.Date)
-	row := db.QueryRow(fillScheduleQuery, schedule.Breakfast, schedule.Lunch, schedule.Dinner)
+	fillScheduleQuery := fmt.Sprintf(`INSERT INTO %s ("dateOf", "breakfastId", "lunchId", "dinnerId") values (date('%s'), $1, $2, $3) RETURNING id`, scheduleTable, schedule.Date)
+	row := db.QueryRow(fillScheduleQuery, schedule.BreakfastId, schedule.LunchId, schedule.DinnerId)
 
 	var id int
 	if err := row.Scan(&id); err != nil {
@@ -34,10 +34,10 @@ func (s *SchedulePostgres) GetAllSchedule(userId int) ([]models.ScheduleOutput, 
 
 	getAllRecipesQuery :=
 		fmt.Sprintf(`SELECT schedule.id as "id",
-       date_of        as "DateOf",
-       breakfast_id   as "BreakfastId",
-       lunch_id       as "LunchId",
-       dinner_id      as "DinnerId",
+       "dateOf"        as "DateOf",
+       "breakfastId"   as "BreakfastId",
+       "lunchId"       as "LunchId",
+       "dinnerId"      as "DinnerId",
        r.title        as "BreakfastTitle",
        r.description  as "BreakfastDescription",
        r2.title       as "LunchTitle",
@@ -45,9 +45,9 @@ func (s *SchedulePostgres) GetAllSchedule(userId int) ([]models.ScheduleOutput, 
        r3.title       as "DinnerTitle",
        r3.description as "DinnerDescription"
 FROM schedule
-         JOIN recipes r on r.id = schedule.breakfast_id
-         JOIN recipes r2 on r2.id = schedule.lunch_id
-         JOIN recipes r3 on r3.id = schedule.dinner_id
+         JOIN recipes r on r.id = schedule."breakfastId"
+         JOIN recipes r2 on r2.id = schedule."lunchId"
+         JOIN recipes r3 on r3.id = schedule."dinnerId"
 `)
 
 	err := s.db.Select(&output, getAllRecipesQuery)
@@ -62,10 +62,10 @@ func (s *SchedulePostgres) GetScheduleByDate(userId int, date string) (models.Sc
 
 	GetScheduleByDateQuery :=
 		fmt.Sprintf(`SELECT schedule.id as "id",
-       date_of        as "DateOf",
-       breakfast_id   as "BreakfastId",
-       lunch_id       as "LunchId",
-       dinner_id      as "DinnerId",
+       "dateOf"        as "DateOf",
+       "breakfastId"   as "BreakfastId",
+       "lunchId"      as "LunchId",
+       "dinnerId"      as "DinnerId",
        r.title        as "BreakfastTitle",
        r.description  as "BreakfastDescription",
        r2.title       as "LunchTitle",
@@ -73,10 +73,10 @@ func (s *SchedulePostgres) GetScheduleByDate(userId int, date string) (models.Sc
        r3.title       as "DinnerTitle",
        r3.description as "DinnerDescription"
 FROM schedule
-         JOIN recipes r on r.id = schedule.breakfast_id
-         JOIN recipes r2 on r2.id = schedule.lunch_id
-         JOIN recipes r3 on r3.id = schedule.dinner_id
-WHERE schedule.date_of = date('%s')
+         JOIN recipes r on r.id = schedule."breakfastId"
+         JOIN recipes r2 on r2.id = schedule."lunchId"
+         JOIN recipes r3 on r3.id = schedule."dinnerId"
+WHERE schedule."dateOf" = date('%s')
 `, date)
 
 	log.Println(GetScheduleByDateQuery)
@@ -100,27 +100,27 @@ func (s *SchedulePostgres) UpdateSchedule(userId int, date string, input models.
 		argId++
 	}
 
-	if input.Breakfast != nil {
-		setValues = append(setValues, fmt.Sprintf("breakfast=$%d", argId))
-		args = append(args, *input.Breakfast)
+	if input.BreakfastId != nil {
+		setValues = append(setValues, fmt.Sprintf("breakfast_id=$%d", argId))
+		args = append(args, *input.BreakfastId)
 		argId++
 	}
 
-	if input.Lunch != nil {
-		setValues = append(setValues, fmt.Sprintf("lunch=$%d", argId))
-		args = append(args, *input.Lunch)
+	if input.LunchId != nil {
+		setValues = append(setValues, fmt.Sprintf("lunch_id=$%d", argId))
+		args = append(args, *input.LunchId)
 		argId++
 	}
 
-	if input.Dinner != nil {
-		setValues = append(setValues, fmt.Sprintf("dinner=$%d", argId))
-		args = append(args, *input.Dinner)
+	if input.DinnerId != nil {
+		setValues = append(setValues, fmt.Sprintf("dinner_id=$%d", argId))
+		args = append(args, *input.DinnerId)
 		argId++
 	}
 
 	setQuery := strings.Join(setValues, ", ")
 
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE schedule.date_of=date('%s')", recipeTable, setQuery, date)
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE schedule.date_of=date('%s')", scheduleTable, setQuery, date)
 	args = append(args)
 
 	_, err := db.Exec(query, args...)

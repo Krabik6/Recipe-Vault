@@ -77,6 +77,7 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 	_, err := r.db.Exec(query, args...)
 	return err
 }
+
 func (r *RecipesPostgres) DeleteRecipe(userId, id int) error {
 	query := fmt.Sprintf("DELETE FROM %s WHERE id=$1", recipeTable)
 	_, err := r.db.Exec(query, id)

@@ -12,16 +12,16 @@ type UpdateRecipeInput struct {
 }
 
 type Schedule struct {
-	Id        int    `json:"Id"`
-	Date      string `json:"date"`
-	Breakfast int    `json:"breakfast"`
-	Lunch     int    `json:"lunch"`
-	Dinner    int    `json:"dinner"`
+	Id          int    `json:"Id,omitempty"`
+	Date        string `json:"Date,omitempty"`
+	BreakfastId int    `json:"BreakfastId,omitempty"`
+	LunchId     int    `json:"LunchId,omitempty"`
+	DinnerId    int    `json:"DinnerId,omitempty"`
 }
 
 type UpdateScheduleInput struct {
-	Date      *string `json:"date"`
-	Breakfast *int    `json:"breakfast"`
-	Lunch     *int    `json:"lunch"`
-	Dinner    *int    `json:"dinner"`
+	Date        *string `json:"Date,omitempty"`
+	BreakfastId *int    `json:"BreakfastId,omitempty"`
+	LunchId     *int    `json:"LunchId,omitempty"`
+	DinnerId    *int    `json:"DinnerId,omitempty"`
 }

@@ -1,36 +1,36 @@
 CREATE TABLE users
 (
-    id   serial primary key,
-    login TEXT not null,
-    password TEXT not null
+    "id"   serial primary key,
+    "login" TEXT not null,
+    "password" TEXT not null
 );
 
 CREATE TABLE recipes
 (
-  id serial primary key,
-  title text not null,
-  description text
+  "id" serial primary key,
+  "title" text not null,
+  "description" text
 );
 
 CREATE TABLE schedule
 (
     id serial primary key,
-    date_of date UNIQUE,
-    breakfast_id int references recipes (id) on delete cascade,
-    lunch_id int references recipes (id) on delete cascade,
-    dinner_id int references recipes (id) on delete cascade
+    "dateOf" date UNIQUE,
+    "breakfastId" int references recipes (id) on delete cascade,
+    "lunchId" int references recipes (id) on delete cascade,
+    "dinnerId" int references recipes (id) on delete cascade
 );
 
 CREATE TABLE user_schedule
 (
-    id serial primary key,
-    user_id int references users (id) on delete cascade,
-    recipe_id int references recipes (id) on delete cascade
+    "id" serial primary key,
+    "userId" int references users (id) on delete cascade,
+    "recipeId" int references recipes (id) on delete cascade
 );
 
 CREATE TABLE user_recipe
 (
-    id serial primary key,
-    user_id int references users (id) on delete cascade
+    "id" serial primary key,
+    "userId" int references users (id) on delete cascade
 );
 
