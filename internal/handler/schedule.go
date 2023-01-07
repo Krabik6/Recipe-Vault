@@ -8,13 +8,19 @@ import (
 )
 
 func (h *Handler) fillSchedule(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	var input models.Schedule
 	if err := c.BindJSON(&input); err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.services.Schedule.FillSchedule(1, input)
+	id, err := h.services.Schedule.FillSchedule(userId, input)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -24,7 +30,13 @@ func (h *Handler) fillSchedule(c *gin.Context) {
 }
 
 func (h *Handler) getAllSchedule(c *gin.Context) {
-	output, err := h.services.Schedule.GetAllSchedule(1)
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	output, err := h.services.Schedule.GetAllSchedule(userId)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -33,10 +45,16 @@ func (h *Handler) getAllSchedule(c *gin.Context) {
 }
 
 func (h *Handler) getScheduleByDate(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	date, _ := c.GetQuery("date")
 	log.Println(date)
 
-	output, err := h.services.Schedule.GetScheduleByDate(1, date)
+	output, err := h.services.Schedule.GetScheduleByDate(userId, date)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -45,6 +63,12 @@ func (h *Handler) getScheduleByDate(c *gin.Context) {
 }
 
 func (h *Handler) updateSchedule(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	date, _ := c.GetQuery("date")
 
 	var input models.UpdateScheduleInput
@@ -53,7 +77,7 @@ func (h *Handler) updateSchedule(c *gin.Context) {
 		return
 	}
 
-	err := h.services.Schedule.UpdateSchedule(1, date, input)
+	err = h.services.Schedule.UpdateSchedule(userId, date, input)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -62,9 +86,15 @@ func (h *Handler) updateSchedule(c *gin.Context) {
 }
 
 func (h *Handler) deleteSchedule(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	date, _ := c.GetQuery("date")
 
-	err := h.services.Schedule.DeleteSchedule(1, date)
+	err = h.services.Schedule.DeleteSchedule(userId, date)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return

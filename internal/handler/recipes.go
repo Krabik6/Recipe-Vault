@@ -8,13 +8,18 @@ import (
 )
 
 func (h *Handler) createRecipe(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
 	var input models.Recipe
 	if err := c.BindJSON(&input); err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.services.Recipes.CreateRecipe(1, input)
+	id, err := h.services.Recipes.CreateRecipe(userId, input)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -24,13 +29,19 @@ func (h *Handler) createRecipe(c *gin.Context) {
 }
 
 func (h *Handler) getRecipeById(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	output, err := h.services.Recipes.GetRecipeById(1, id)
+	output, err := h.services.Recipes.GetRecipeById(userId, id)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -40,7 +51,13 @@ func (h *Handler) getRecipeById(c *gin.Context) {
 }
 
 func (h *Handler) getAllRecipes(c *gin.Context) {
-	output, err := h.services.Recipes.GetAllRecipes(1)
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	output, err := h.services.Recipes.GetAllRecipes(userId)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -49,6 +66,12 @@ func (h *Handler) getAllRecipes(c *gin.Context) {
 }
 
 func (h *Handler) updateRecipe(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
@@ -60,7 +83,7 @@ func (h *Handler) updateRecipe(c *gin.Context) {
 		return
 	}
 
-	err = h.services.Recipes.UpdateRecipe(1, id, input)
+	err = h.services.Recipes.UpdateRecipe(userId, id, input)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -69,13 +92,19 @@ func (h *Handler) updateRecipe(c *gin.Context) {
 }
 
 func (h *Handler) deleteRecipe(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	err = h.services.Recipes.DeleteRecipe(1, id)
+	err = h.services.Recipes.DeleteRecipe(userId, id)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return

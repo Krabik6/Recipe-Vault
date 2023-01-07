@@ -1,0 +1,16 @@
+server:
+  host: localhost
+  port: 8000
+  timeout:
+    server: 30
+    read: 15
+    write: 10
+    idle: 5
+
+db:
+  host: db
+  port: 5432
+  username: postgres
+#  password: qwerty
+  DBName: postgres
+  SSLMode: disable

@@ -5,6 +5,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type Authorization interface {
+	CreateUser(user models.User) (int, error)
+	GetUser(username, password string) (models.User, error)
+}
+
 type Recipes interface {
 	CreateRecipe(userId int, recipe models.Recipe) (int, error)
 	GetRecipeById(userId, id int) (models.Recipe, error)
@@ -22,13 +27,15 @@ type Schedule interface {
 }
 
 type Repository struct {
+	Authorization
 	Recipes
 	Schedule
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		Recipes:  NewRecipesPostgres(db),
-		Schedule: NewSchedulePostgres(db),
+		Authorization: NewAuthPostgres(db),
+		Recipes:       NewRecipesPostgres(db),
+		Schedule:      NewSchedulePostgres(db),
 	}
 }

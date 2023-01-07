@@ -22,23 +22,27 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		auth.POST("/sign-in", h.signIn)
 	}
 
-	recipes := router.Group("/recipes")
+	api := router.Group("/api", h.userIdentity)
 	{
-		recipes.POST("/", h.createRecipe)
-		recipes.GET("/", h.getAllRecipes)
-		recipes.GET("/:id", h.getRecipeById)
-		recipes.PUT("/:id", h.updateRecipe)
-		recipes.DELETE("/:id", h.deleteRecipe)
+		recipes := api.Group("/recipes")
+		{
+			recipes.POST("/", h.createRecipe)
+			recipes.GET("/", h.getAllRecipes)
+			recipes.GET("/:id", h.getRecipeById)
+			recipes.PUT("/:id", h.updateRecipe)
+			recipes.DELETE("/:id", h.deleteRecipe)
+		}
+
+		schedule := api.Group("/schedule")
+		{
+			schedule.POST("/", h.fillSchedule)
+			schedule.GET("/all", h.getAllSchedule)
+			schedule.GET("/", h.getScheduleByDate)
+			schedule.PUT("/", h.updateSchedule)
+			schedule.DELETE("/", h.deleteSchedule)
+		}
+
+		return router
 	}
 
-	schedule := router.Group("/schedule")
-	{
-		schedule.POST("/", h.fillSchedule)
-		schedule.GET("/all", h.getAllSchedule)
-		schedule.GET("/", h.getScheduleByDate)
-		schedule.PUT("/", h.updateSchedule)
-		schedule.DELETE("/", h.deleteSchedule)
-	}
-
-	return router
 }

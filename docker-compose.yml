@@ -8,7 +8,7 @@ services:
     depends_on:
       - db
     environment:
-      - DB_PASSWORD=qwerty
+      - DB_PASSWORD=${DB_PASSWORD}
     container_name: meal-schedule
 
   db:
@@ -17,7 +17,7 @@ services:
     volumes:
       - ./.database/postgres/data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_PASSWORD=qwerty
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
       - 5436:5432
 
@@ -27,4 +27,4 @@ services:
       - db
     volumes:
       - ./migrations:/migrations
-    command: ["-path", "migrations", "-database", "postgres://postgres:qwerty@db:5432/postgres?sslmode=disable", "up"]
+    command: ["-path", "migrations", "-database", "postgres://postgres:${DB_PASSWORD}@db:5432/postgres?sslmode=disable", "up"]

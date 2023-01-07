@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/Krabik6/meal-schedule/internal/apiserver"
+	"github.com/Krabik6/meal-schedule/internal/configs"
 	"github.com/Krabik6/meal-schedule/internal/handler"
 	"github.com/Krabik6/meal-schedule/internal/repository"
 	"github.com/Krabik6/meal-schedule/internal/service"
@@ -13,13 +14,24 @@ import (
 
 func main() {
 
+	cfgPath, err := configs.ParseFlags("./config/config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cfg, err := configs.NewConfig(cfgPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(cfg.DB.Password)
+
 	db, err := repository.NewPostgresDB(repository.Config{
-		Host:     "db",
-		Port:     "5432",
-		Username: "postgres",
-		Password: "qwerty",
-		DBName:   "postgres",
-		SSLMode:  "disable",
+		Host:     cfg.DB.Host,
+		Port:     cfg.DB.Port,
+		Username: cfg.DB.Username,
+		Password: cfg.DB.Password,
+		DBName:   cfg.DB.DBName,
+		SSLMode:  cfg.DB.SSLMode,
 	})
 	if err != nil {
 		log.Fatalf("db %e", err)
@@ -30,24 +42,10 @@ func main() {
 	handlers := handler.NewHandler(services)
 	server := new(apiserver.Server)
 
-	if err := server.Run("8000", handlers.InitRoutes()); err != nil {
+	if err := server.Run(cfg.Server.Port, handlers.InitRoutes()); err != nil {
 		log.Fatalf("error occured while running http server: %s", err.Error())
 	}
 
 	fmt.Println(strconv.Atoi("15"))
 
-	//err = repository.CreateRecipe(models.Recipe{
-	//	Id:          0,
-	//	Title:        "borsh",
-	//	Description: "russian soup",
-	//}, db)
-	//
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//_, err = repository.GetRecipeById(db)
-	//if err != nil {
-	//	panic(err)
-	//}
 }

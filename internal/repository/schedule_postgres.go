@@ -17,40 +17,43 @@ func NewSchedulePostgres(db *sqlx.DB) *SchedulePostgres {
 }
 
 func (s *SchedulePostgres) FillSchedule(userId int, schedule models.Schedule) (int, error) {
-	db := s.db
-	fillScheduleQuery := fmt.Sprintf(`INSERT INTO %s ("dateOf", "breakfastId", "lunchId", "dinnerId") values (date('%s'), $1, $2, $3) RETURNING id`, scheduleTable, schedule.Date)
-	row := db.QueryRow(fillScheduleQuery, schedule.BreakfastId, schedule.LunchId, schedule.DinnerId)
-
-	var id int
-	if err := row.Scan(&id); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return 0, err
 	}
 
-	return id, nil
+	var id int
+	fillScheduleQuery := fmt.Sprintf(`INSERT INTO %s ("dateOf", "breakfastId", "lunchId", "dinnerId", "userId") values (date('%s'), $1, $2, $3, $4) RETURNING id`, scheduleTable, schedule.Date)
+	row := tx.QueryRow(fillScheduleQuery, schedule.BreakfastId, schedule.LunchId, schedule.DinnerId, userId)
+
+	if err := row.Scan(&id); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	return id, tx.Commit()
+
 }
 
 func (s *SchedulePostgres) GetAllSchedule(userId int) ([]models.ScheduleOutput, error) {
 	var output []models.ScheduleOutput
 
 	getAllRecipesQuery :=
-		fmt.Sprintf(`SELECT schedule.id as "id",
-       "dateOf"        as "DateOf",
-       "breakfastId"   as "BreakfastId",
-       "lunchId"       as "LunchId",
-       "dinnerId"      as "DinnerId",
+		fmt.Sprintf(`SELECT 
        r.title        as "BreakfastTitle",
        r.description  as "BreakfastDescription",
        r2.title       as "LunchTitle",
        r2.description as "LunchDescription",
        r3.title       as "DinnerTitle",
        r3.description as "DinnerDescription"
-FROM schedule
-         JOIN recipes r on r.id = schedule."breakfastId"
-         JOIN recipes r2 on r2.id = schedule."lunchId"
-         JOIN recipes r3 on r3.id = schedule."dinnerId"
-`)
+FROM %s as st
+         JOIN recipes r on r.id = st."breakfastId"
+         JOIN recipes r2 on r2.id = st."lunchId"
+         JOIN recipes r3 on r3.id = st."dinnerId"
+    	WHERE st."userId" = $1
+`, scheduleTable)
 
-	err := s.db.Select(&output, getAllRecipesQuery)
+	err := s.db.Select(&output, getAllRecipesQuery, userId)
 	if err != nil {
 		return output, err
 	}
@@ -61,26 +64,22 @@ func (s *SchedulePostgres) GetScheduleByDate(userId int, date string) (models.Sc
 	var output models.ScheduleOutput
 
 	GetScheduleByDateQuery :=
-		fmt.Sprintf(`SELECT schedule.id as "id",
-       "dateOf"        as "DateOf",
-       "breakfastId"   as "BreakfastId",
-       "lunchId"      as "LunchId",
-       "dinnerId"      as "DinnerId",
-       r.title        as "BreakfastTitle",
-       r.description  as "BreakfastDescription",
-       r2.title       as "LunchTitle",
-       r2.description as "LunchDescription",
-       r3.title       as "DinnerTitle",
-       r3.description as "DinnerDescription"
-FROM schedule
-         JOIN recipes r on r.id = schedule."breakfastId"
-         JOIN recipes r2 on r2.id = schedule."lunchId"
-         JOIN recipes r3 on r3.id = schedule."dinnerId"
-WHERE schedule."dateOf" = date('%s')
-`, date)
+		fmt.Sprintf(`SELECT 
+    r.title        as "BreakfastTitle",
+    r.description  as "BreakfastDescription",
+    r2.title       as "LunchTitle",
+    r2.description as "LunchDescription",
+    r3.title       as "DinnerTitle",
+    r3.description as "DinnerDescription"
+	FROM %s as st
+	JOIN recipes r on r.id = st."breakfastId"
+	JOIN recipes r2 on r2.id = st."lunchId"
+	JOIN recipes r3 on r3.id = st."dinnerId"
+	WHERE schedule."dateOf" = date('%s') and st."userId" = $1
+`, scheduleTable, date)
 
 	log.Println(GetScheduleByDateQuery)
-	err := s.db.Get(&output, GetScheduleByDateQuery)
+	err := s.db.Get(&output, GetScheduleByDateQuery, userId)
 	if err != nil {
 		return output, err
 	}
