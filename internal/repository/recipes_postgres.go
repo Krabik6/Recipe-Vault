@@ -19,9 +19,9 @@ func NewRecipesPostgres(db *sqlx.DB) *RecipesPostgres {
 func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) (int, error) {
 	db := r.db
 
-	addRecipeQuery := fmt.Sprintf(`INSERT INTO %s (title, description, "userId") values ($1, $2, $3) RETURNING id`, recipeTable)
+	addRecipeQuery := fmt.Sprintf(`INSERT INTO %s (title, description, user_id, public) values ($1, $2, $3, $4) RETURNING id`, recipeTable)
 
-	row := db.QueryRow(addRecipeQuery, recipe.Title, recipe.Description, userId)
+	row := db.QueryRow(addRecipeQuery, recipe.Title, recipe.Description, userId, recipe.IsPublic)
 
 	var id int
 	if err := row.Scan(&id); err != nil {
@@ -31,11 +31,11 @@ func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) (int, e
 	return id, nil
 }
 
-func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
+func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.RecipeOutput, error) {
 	db := r.db
 
-	output := models.Recipe{}
-	getRecipeByIdQuery := fmt.Sprintf(`SELECT rt.id, rt.title, rt.description FROM %s as rt WHERE rt."userId" = $1 and rt.id=$2`, recipeTable)
+	output := models.RecipeOutput{}
+	getRecipeByIdQuery := fmt.Sprintf(`SELECT rt.title, rt.description, rt.public FROM %s as rt WHERE rt."user_id" = $1 and rt.id=$2`, recipeTable)
 	err := db.Get(&output, getRecipeByIdQuery, userId, id)
 	if err != nil {
 		return output, err
@@ -47,8 +47,8 @@ func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
 func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 	db := r.db
 
-	output := []models.Recipe{}
-	getAllRecipeQuery := fmt.Sprintf(`SELECT rt.id, rt.title, rt.description FROM as %s rt  WHERE rt."userId" = $1`, recipeTable)
+	var output []models.Recipe
+	getAllRecipeQuery := fmt.Sprintf(`SELECT rt.id, rt.title, rt.description, rt.public FROM  %s as rt  WHERE rt."user_id" = $1`, recipeTable)
 	err := db.Select(&output, getAllRecipeQuery, userId)
 	if err != nil {
 		return output, err
@@ -57,18 +57,18 @@ func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 	return output, err
 }
 
-//func (r *RecipesPostgres) GetAllExistRecipes() ([]models.Recipe, error) {
-//	db := r.db
-//
-//	output := []models.Recipe{}
-//	getAllExistRecipeQuery := fmt.Sprintf(`SELECT rt.id, rt.title, rt.description FROM %s`, recipeTable)
-//	err := db.Select(&output, getAllExistRecipeQuery)
-//	if err != nil {
-//		return output, err
-//	}
-//
-//	return output, err
-//} todo interfaces etc
+func (r *RecipesPostgres) GetPublicRecipes() ([]models.Recipe, error) {
+	db := r.db
+
+	var output []models.Recipe
+	getAllExistRecipeQuery := fmt.Sprintf(`SELECT rt.id, rt.title, rt.description, rt.public FROM %s as rt WHERE rt.public=true`, recipeTable)
+	err := db.Select(&output, getAllExistRecipeQuery)
+	if err != nil {
+		return output, err
+	}
+
+	return output, err
+}
 
 func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error {
 	db := r.db
@@ -89,9 +89,15 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 		argId++
 	}
 
+	if input.IsPublic != nil {
+		setValues = append(setValues, fmt.Sprintf("public=$%d", argId))
+		args = append(args, *input.IsPublic)
+		argId++
+	}
+
 	setQuery := strings.Join(setValues, ", ")
 
-	query := fmt.Sprintf(`UPDATE %s rt SET %s FROM %s ut WHERE rt.id = ut.id AND rt.id=%d AND ut."userId"=%s`, recipeTable, setQuery, userTable, id, userId)
+	query := fmt.Sprintf(`UPDATE %s SET %s WHERE "id"=%d AND "user_id"=%d`, recipeTable, setQuery, id, userId)
 	args = append(args)
 
 	_, err := db.Exec(query, args...)
@@ -100,8 +106,8 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 }
 
 func (r *RecipesPostgres) DeleteRecipe(userId, id int) error {
-	query := fmt.Sprintf("DELETE FROM %s WHERE id=$1", recipeTable)
-	_, err := r.db.Exec(query, id)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE "id"=$1 and "user_id"=$2 `, recipeTable)
+	_, err := r.db.Exec(query, id, userId)
 	return err
 
 }

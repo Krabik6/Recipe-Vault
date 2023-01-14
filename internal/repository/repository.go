@@ -12,10 +12,11 @@ type Authorization interface {
 
 type Recipes interface {
 	CreateRecipe(userId int, recipe models.Recipe) (int, error)
-	GetRecipeById(userId, id int) (models.Recipe, error)
+	GetRecipeById(userId, id int) (models.RecipeOutput, error)
 	GetAllRecipes(userId int) ([]models.Recipe, error)
 	UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error
 	DeleteRecipe(userId, id int) error
+	GetPublicRecipes() ([]models.Recipe, error)
 }
 
 type Schedule interface {

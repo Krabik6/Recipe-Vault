@@ -65,6 +65,15 @@ func (h *Handler) getAllRecipes(c *gin.Context) {
 	c.JSON(http.StatusOK, output)
 }
 
+func (h *Handler) getPublicRecipes(c *gin.Context) {
+	output, err := h.services.Recipes.GetPublicRecipes()
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, output)
+}
+
 func (h *Handler) updateRecipe(c *gin.Context) {
 	userId, err := getUserId(c)
 	if err != nil {
