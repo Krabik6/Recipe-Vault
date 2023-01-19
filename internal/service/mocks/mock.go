@@ -34,6 +34,51 @@ func (m *MockAuthorization) EXPECT() *MockAuthorizationMockRecorder {
 	return m.recorder
 }
 
+// CreateUser mocks base method.
+func (m *MockAuthorization) CreateUser(user models.User) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateUser", user)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateUser indicates an expected call of CreateUser.
+func (mr *MockAuthorizationMockRecorder) CreateUser(user interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockAuthorization)(nil).CreateUser), user)
+}
+
+// GenerateToken mocks base method.
+func (m *MockAuthorization) GenerateToken(username, password string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GenerateToken", username, password)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GenerateToken indicates an expected call of GenerateToken.
+func (mr *MockAuthorizationMockRecorder) GenerateToken(username, password interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateToken", reflect.TypeOf((*MockAuthorization)(nil).GenerateToken), username, password)
+}
+
+// ParseToken mocks base method.
+func (m *MockAuthorization) ParseToken(token string) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ParseToken", token)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ParseToken indicates an expected call of ParseToken.
+func (mr *MockAuthorizationMockRecorder) ParseToken(token interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ParseToken", reflect.TypeOf((*MockAuthorization)(nil).ParseToken), token)
+}
+
 // MockRecipes is a mock of Recipes interface.
 type MockRecipes struct {
 	ctrl     *gomock.Controller
@@ -101,11 +146,26 @@ func (mr *MockRecipesMockRecorder) GetAllRecipes(userId interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllRecipes", reflect.TypeOf((*MockRecipes)(nil).GetAllRecipes), userId)
 }
 
+// GetPublicRecipes mocks base method.
+func (m *MockRecipes) GetPublicRecipes() ([]models.Recipe, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPublicRecipes")
+	ret0, _ := ret[0].([]models.Recipe)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPublicRecipes indicates an expected call of GetPublicRecipes.
+func (mr *MockRecipesMockRecorder) GetPublicRecipes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPublicRecipes", reflect.TypeOf((*MockRecipes)(nil).GetPublicRecipes))
+}
+
 // GetRecipeById mocks base method.
-func (m *MockRecipes) GetRecipeById(userId, id int) (models.Recipe, error) {
+func (m *MockRecipes) GetRecipeById(userId, id int) (models.RecipeOutput, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRecipeById", userId, id)
-	ret0, _ := ret[0].(models.Recipe)
+	ret0, _ := ret[0].(models.RecipeOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
