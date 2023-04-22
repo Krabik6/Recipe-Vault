@@ -162,10 +162,10 @@ func (mr *MockRecipesMockRecorder) GetPublicRecipes() *gomock.Call {
 }
 
 // GetRecipeById mocks base method.
-func (m *MockRecipes) GetRecipeById(userId, id int) (models.RecipeOutput, error) {
+func (m *MockRecipes) GetRecipeById(userId, id int) (models.Recipe, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRecipeById", userId, id)
-	ret0, _ := ret[0].(models.RecipeOutput)
+	ret0, _ := ret[0].(models.Recipe)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

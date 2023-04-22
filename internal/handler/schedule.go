@@ -14,7 +14,7 @@ func (h *Handler) fillSchedule(c *gin.Context) {
 		return
 	}
 
-	var input models.Schedule
+	var input models.Meal
 	if err := c.BindJSON(&input); err != nil {
 		newErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
@@ -28,6 +28,30 @@ func (h *Handler) fillSchedule(c *gin.Context) {
 	// TODO return id
 	c.JSON(http.StatusOK, gin.H{"id": id})
 }
+
+func (h *Handler) createMeal(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var input models.Meal
+	if err := c.BindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	id, err := h.services.Schedule.CreateMeal(userId, input)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// TODO return id
+	c.JSON(http.StatusOK, gin.H{"id": id})
+}
+
+//func (s *ScheduleService) CreateMeal(userId int, meal models.Meal) (int, error) {
 
 func (h *Handler) getAllSchedule(c *gin.Context) {
 	userId, err := getUserId(c)
@@ -52,7 +76,7 @@ func (h *Handler) getScheduleByDate(c *gin.Context) {
 	}
 
 	date, _ := c.GetQuery("date")
-	log.Println(date)
+	log.Println(date, "date")
 
 	output, err := h.services.Schedule.GetScheduleByDate(userId, date)
 	if err != nil {
