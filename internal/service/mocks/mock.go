@@ -260,7 +260,7 @@ func (mr *MockScheduleMockRecorder) GetAllSchedule(userId interface{}) *gomock.C
 // GetScheduleByDate mocks base method.
 func (m *MockSchedule) GetScheduleByDate(userId int, date string) (models.ScheduleOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetScheduleByDate", userId, date)
+	ret := m.ctrl.Call(m, "GetScheduleByPeriod", userId, date)
 	ret0, _ := ret[0].(models.ScheduleOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -269,7 +269,7 @@ func (m *MockSchedule) GetScheduleByDate(userId int, date string) (models.Schedu
 // GetScheduleByDate indicates an expected call of GetScheduleByDate.
 func (mr *MockScheduleMockRecorder) GetScheduleByDate(userId, date interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetScheduleByDate", reflect.TypeOf((*MockSchedule)(nil).GetScheduleByDate), userId, date)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetScheduleByPeriod", reflect.TypeOf((*MockSchedule)(nil).GetScheduleByDate), userId, date)
 }
 
 // UpdateSchedule mocks base method.

@@ -50,7 +50,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			schedule.POST("/", h.fillSchedule)
 			schedule.POST("/meal", h.createMeal)
 			schedule.GET("/all", h.getAllSchedule)
-			schedule.GET("/", h.getScheduleByDate)
+			schedule.GET("/", h.getScheduleByPeriod)
 			schedule.PUT("/", h.updateSchedule)
 			schedule.DELETE("/", h.deleteSchedule)
 		}

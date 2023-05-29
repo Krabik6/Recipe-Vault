@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/Krabik6/meal-schedule/internal/models"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
+	"strconv"
 )
 
 func (h *Handler) fillSchedule(c *gin.Context) {
@@ -68,17 +68,32 @@ func (h *Handler) getAllSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, output)
 }
 
-func (h *Handler) getScheduleByDate(c *gin.Context) {
+func (h *Handler) getScheduleByPeriod(c *gin.Context) {
 	userId, err := getUserId(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	date, _ := c.GetQuery("date")
-	log.Println(date, "date")
+	date, ok := c.GetQuery("date")
+	if !ok {
+		newErrorResponse(c, http.StatusBadRequest, "date not found")
+		return
+	}
 
-	output, err := h.services.Schedule.GetScheduleByDate(userId, date)
+	period, ok := c.GetQuery("period")
+	if !ok {
+		newErrorResponse(c, http.StatusBadRequest, "period not found")
+		return
+	}
+
+	intPeriod, err := strconv.Atoi(period)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	output, err := h.services.Schedule.GetScheduleByPeriod(userId, date, intPeriod)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return

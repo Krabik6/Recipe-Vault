@@ -175,6 +175,16 @@ func GetAllRecipes(bot *tgbotapi.BotAPI, update tgbotapi.Update, client *http.Cl
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		debug.PrintStack()
+		bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Recipe not found."))
+		return
+	} else if resp.StatusCode != http.StatusOK {
+		debug.PrintStack()
+		bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Error while getting recipe. %d", resp.StatusCode)))
+		return
+	}
+
 	var recipes []models.Recipe
 	err = json.NewDecoder(resp.Body).Decode(&recipes)
 	if err != nil {

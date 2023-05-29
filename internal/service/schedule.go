@@ -20,8 +20,8 @@ func (s *ScheduleService) FillSchedule(userId int, meal models.Meal) (int, error
 func (s *ScheduleService) GetAllSchedule(userId int) ([]models.ScheduleOutput, error) {
 	return s.repo.GetAllSchedule(userId)
 }
-func (s *ScheduleService) GetScheduleByDate(userId int, date string) ([]models.ScheduleOutput, error) {
-	return s.repo.GetScheduleByDate(userId, date)
+func (s *ScheduleService) GetScheduleByPeriod(userId int, date string, dayPeriod int) ([]models.ScheduleOutput, error) {
+	return s.repo.GetScheduleByPeriod(userId, date, dayPeriod)
 
 }
 func (s *ScheduleService) UpdateSchedule(userId int, date string, input models.UpdateScheduleInput) error {

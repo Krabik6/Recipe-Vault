@@ -90,6 +90,16 @@ func (s *SchedulePostgres) CreateMeal(userId int, meal models.Meal) (int, error)
 		return 0, err
 	}
 
+	for _, value := range meal.Recipes {
+		fillQuery := fmt.Sprintf(`
+		INSERT INTO %s ("recipeId", "mealId") values ($1, $2)`,
+			mealRecipesTable)
+		_, err = tx.Exec(fillQuery, value, id)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	return id, tx.Commit()
 
 }
@@ -110,15 +120,15 @@ func (s *SchedulePostgres) GetAllSchedule(userId int) ([]models.ScheduleOutput, 
 
 	return output, err
 }
-func (s *SchedulePostgres) GetScheduleByDate(userId int, date string) ([]models.ScheduleOutput, error) {
+func (s *SchedulePostgres) GetScheduleByPeriod(userId int, date string, dayPeriod int) ([]models.ScheduleOutput, error) {
 	var output []models.ScheduleOutput
 	GetScheduleByDateQuery :=
-		fmt.Sprintf(`SELECT  * from meal m 
-    JOIN mealrecipes mr on m.id = mr."mealId" 
-          WHERE m.user_id = $1
-			AND m.at_time >= %s 
-            AND m.at_time <= TIMESTAMP %s + INTERVAL '1 days';`,
-			date, date)
+		fmt.Sprintf(`SELECT  m.id, m.name, m.at_time, r.title, r.description, r.public, r.cost, r."timeToPrepare", r.healthy from meal m
+    JOIN mealrecipes mr on m.id = mr."mealId" JOIN recipes r on mr."recipeId" = r.id
+        WHERE m.user_id = $1
+          AND m.at_time >= '%s'
+          AND m.at_time <= TIMESTAMP '%s' + INTERVAL '%d days';`,
+			date, date, dayPeriod)
 
 	log.Println(GetScheduleByDateQuery)
 	err := s.db.Select(&output, GetScheduleByDateQuery, userId)
