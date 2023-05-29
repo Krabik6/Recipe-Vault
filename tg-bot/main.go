@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/Krabik6/meal-schedule/tg-bot/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -455,6 +458,8 @@ func handleConfirmationState(bot *tgbotapi.BotAPI, redisClient *redis.Client, us
 	if update.CallbackQuery != nil {
 		switch update.CallbackQuery.Data {
 		case "confirm":
+			client := &http.Client{}
+			SignUp(bot, update, client, *user)
 			reply := "Регистрация успешно завершена!"
 			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, reply)
 			bot.Send(msg)
@@ -574,4 +579,41 @@ func handleRecipeConfirmationState(bot *tgbotapi.BotAPI, redisClient *redis.Clie
 			}
 		}
 	}
+}
+
+func SignUp(bot *tgbotapi.BotAPI, update tgbotapi.Update, client *http.Client, user User) error {
+	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Sign up")
+	bot.Send(msg)
+
+	signUpCredentials := model.SignUpCredentials{
+		Username: user.Login,
+		Password: user.Password,
+		Name:     user.Nickname,
+	}
+
+	requestBody, err := json.Marshal(signUpCredentials)
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Error while signing up ("+err.Error()+"). Please try again."))
+		return err
+	}
+
+	resp, err := client.Post("http://localhost:8000/auth/sign-up", "application/json", strings.NewReader(string(requestBody)))
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Error while signing up ("+err.Error()+"). Please try again. POST"))
+		return err
+	}
+	defer resp.Body.Close()
+
+	var authResponse model.AuthResponse
+	err = json.NewDecoder(resp.Body).Decode(&authResponse)
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Error while signing up ("+err.Error()+"). Please try again."))
+		return err
+	}
+
+	fmt.Println(resp.StatusCode, authResponse.Token)
+
+	message := "You have successfully signed up. Now signIn" + authResponse.Token
+	bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, message))
+	return nil
 }
