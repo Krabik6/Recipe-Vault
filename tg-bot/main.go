@@ -92,6 +92,7 @@ func main() {
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
+	redisClient.FlushDB(context.Background()).Err() //todo its delete all
 
 	updates := bot.GetUpdatesChan(u)
 
@@ -121,28 +122,106 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, redisClient *redis.Client, update
 			RecipeState: StateRecipeIdle,
 		}
 
-		// Логика обработки нажатия на кнопку
-		switch user.RegStatus {
-		case StateConfirmation:
+		// Обработка нажатия на кнопку
+		switch callbackQuery.Data {
+		case "confirm":
 			handleConfirmationState(bot, redisClient, user, recipe, update)
-		}
-
-		switch recipe.RecipeState {
-		case StateRecipeConfirmation:
+		case "restart":
+			handleRestartState(bot, redisClient, user, recipe, update)
+		case "recipe_confirm":
 			handleRecipeConfirmationState(bot, redisClient, user, recipe, update)
+		case "recipe_restart":
+			handleRecipeRestartState(bot, redisClient, user, recipe, update)
+		case "cancel":
+			handleCancelState(bot, redisClient, user, recipe, update)
 		}
 	}
+}
+
+func handleRestartState(bot *tgbotapi.BotAPI, redisClient *redis.Client, user *User, recipe *Recipe, update tgbotapi.Update) {
+	// Perform the necessary actions when the "restart" button is pressed
+	// For example, reset the registration process or clear user data
+	reply := "Процесс будет начат заново."
+	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, reply)
+	bot.Send(msg)
+
+	// Reset user registration status and remove user data from Redis
+	user.RegStatus = StateIdle
+	err := redisClient.Del(context.Background(), fmt.Sprintf("user:%d", user.UserID)).Err()
+	if err != nil {
+		log.Println("Ошибка при удалении данных пользователя из Redis:", err)
+	}
+}
+
+func handleRecipeRestartState(bot *tgbotapi.BotAPI, redisClient *redis.Client, user *User, recipe *Recipe, update tgbotapi.Update) {
+	// Perform the necessary actions when the "recipe_restart" button is pressed
+	// For example, reset the recipe creation process or clear recipe data
+	reply := "Процесс создания рецепта будет начат заново."
+	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, reply)
+	bot.Send(msg)
+
+	// Reset recipe creation status and remove recipe data from Redis
+	recipe.RecipeState = StateRecipeIdle
+	err := redisClient.Del(context.Background(), fmt.Sprintf("recipe:%d", recipe.UserID)).Err()
+	if err != nil {
+		log.Println("Ошибка при удалении данных рецепта из Redis:", err)
+	}
+}
+func handleCancelState(bot *tgbotapi.BotAPI, redisClient *redis.Client, user *User, recipe *Recipe, update tgbotapi.Update) {
+	// Perform the necessary actions when the "cancel" button is pressed
+	// For example, cancel the current process or clear user/recipe data
+
+	// Reset user registration status and remove user data from Redis
+	user.RegStatus = StateIdle
+	err := redisClient.Del(context.Background(), fmt.Sprintf("user:%d", user.UserID)).Err()
+	if err != nil {
+		log.Println("Ошибка при удалении данных пользователя из Redis:", err)
+	}
+
+	// Reset recipe creation status and remove recipe data from Redis
+	recipe.RecipeState = StateRecipeIdle
+	err = redisClient.Del(context.Background(), fmt.Sprintf("recipe:%d", recipe.UserID)).Err()
+	if err != nil {
+		log.Println("Ошибка при удалении данных рецепта из Redis:", err)
+	}
+
+	var chatID int64
+	if update.Message != nil {
+		chatID = update.Message.Chat.ID
+	} else if update.CallbackQuery != nil {
+		chatID = update.CallbackQuery.Message.Chat.ID
+	}
+
+	reply := "Процесс отменен. Вы можете начать заново или выбрать другое действие."
+	msg := tgbotapi.NewMessage(chatID, reply)
+	bot.Send(msg)
 }
 
 func handleMessage(bot *tgbotapi.BotAPI, redisClient *redis.Client, update tgbotapi.Update) {
 	message := update.Message
 	userID := message.Chat.ID
 
-	user, err := getUserFromRedis(redisClient, userID)
+	exists, err := checkUserExistsInRedis(redisClient, userID)
 	if err != nil {
-		log.Println("Ошибка при получении пользователя из Redis:", err)
+		log.Println("Ошибка при проверке существования пользователя в Redis:", err)
 		return
 	}
+
+	if !exists {
+		// Если пользователь не найден, создаем нового пользователя
+		user := &User{
+			UserID:    userID,
+			RegStatus: StateIdle,
+		}
+
+		// Сохраняем нового пользователя в Redis
+		err := saveUserToRedis(redisClient, user)
+		if err != nil {
+			log.Println("Ошибка при сохранении пользователя в Redis:", err)
+			return
+		}
+	}
+	user, err := getUserFromRedis(redisClient, userID)
 
 	recipe := &Recipe{
 		UserID:      userID,
@@ -173,6 +252,15 @@ func handleMessage(bot *tgbotapi.BotAPI, redisClient *redis.Client, update tgbot
 	}
 }
 
+func checkUserExistsInRedis(redisClient *redis.Client, userID int64) (bool, error) {
+	hashKey := fmt.Sprintf("user:%d", userID)
+	exists, err := redisClient.Exists(context.Background(), hashKey).Result()
+	if err != nil {
+		return false, err
+	}
+	return exists == 1, nil
+}
+
 func getUserFromRedis(client *redis.Client, userID int64) (*User, error) {
 	hashKey := fmt.Sprintf("user:%d", userID)
 	log.Println(hashKey)
@@ -182,10 +270,10 @@ func getUserFromRedis(client *redis.Client, userID int64) (*User, error) {
 	}
 	log.Println(result)
 
-	userIDStr := result["UserID"]
-	if userIDStr == "" {
-		return nil, fmt.Errorf("UserID is empty for user with ID %d", userID)
-	}
+	//userIDStr := result["UserID"]
+	//if userIDStr == "" {
+	//	return nil, fmt.Errorf("UserID is empty for user with ID %d", userID)
+	//}
 
 	regStatusStr := result["RegStatus"]
 	regStatus, err := strconv.Atoi(regStatusStr)
@@ -285,6 +373,8 @@ func handleIdleState(bot *tgbotapi.BotAPI, redisClient *redis.Client, user *User
 		if err != nil {
 			log.Println("Ошибка при сохранении рецепта в Redis:", err)
 		}
+	} else if update.Message.Text == "/cancel" {
+		handleCancelState(bot, redisClient, user, recipe, update)
 	}
 }
 
@@ -385,6 +475,8 @@ func handleConfirmationState(bot *tgbotapi.BotAPI, redisClient *redis.Client, us
 			if err != nil {
 				log.Println("Ошибка при удалении данных пользователя из Redis:", err)
 			}
+		case "cancel":
+			handleCancelState(bot, redisClient, user, recipe, update)
 		}
 	}
 }
@@ -400,6 +492,8 @@ func handleRecipeIdleState(bot *tgbotapi.BotAPI, redisClient *redis.Client, user
 		if err != nil {
 			log.Println("Ошибка при сохранении рецепта в Redis:", err)
 		}
+	} else if update.Message.Text == "/cancel" {
+		handleCancelState(bot, redisClient, user, recipe, update)
 	}
 }
 
