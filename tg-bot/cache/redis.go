@@ -17,7 +17,7 @@ type CRD interface {
 
 }
 
-// CRDRedis is the implementation of the CRD interface using go-redis/v9 Redis client.
+// CRDRedis is the implementation of the CRD interface using go-state/v9 Redis client.
 type CRDRedis struct {
 	redisClient *redis.Client
 }
