@@ -16,23 +16,23 @@ type NoStateHandler struct {
 
 // constants with response messages
 const (
-	startMessage = "Привет! Я бот для создания рецептов. Для регистрации введите /registration"
+	startMessage = "Привет! Я бот для создания рецептов.\n Список комманд: \n /start - начать работу с ботом \n /registration - зарегистрироваться \n /login - войти в аккаунт \n /create_recipe - создать рецепт "
 )
 
 // HandleMessage функция для обработки команды в состоянии без состояния
 func (nsh *NoStateHandler) HandleMessage(ctx context.Context, userID int64, command string) error {
 	switch command {
 	case startCommand:
-		// Обработка команды /start
 		err := nsh.Start(ctx, userID)
 		if err != nil {
 			return err
 		}
 	case registrationCommand:
 		nsh.StateHandler.State = RegistrationState
-		log.Println("registration")
 	case createRecipeCommand:
 		nsh.StateHandler.State = RecipeCreationState
+	case logInCommand:
+		nsh.StateHandler.State = LogInState
 	default:
 		// Обработка неизвестной команды
 		err := nsh.UnknownCommand(ctx, userID)
@@ -44,7 +44,6 @@ func (nsh *NoStateHandler) HandleMessage(ctx context.Context, userID int64, comm
 	if err != nil {
 		return err
 	}
-	log.Println("state of :", nsh.StateHandler.State)
 	return nil
 }
 

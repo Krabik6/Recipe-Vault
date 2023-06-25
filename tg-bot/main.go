@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/Krabik6/meal-schedule/tg-bot/statehandlers"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
@@ -58,7 +57,13 @@ func main() {
 		//command := update.Message.Text
 		err := statehandlers.HandleCommand(ctx, update, redisClient, bot)
 		if err != nil {
-			fmt.Printf("Error handling command: %v\n", err)
+			spoilerErrorMessage := "⚠️ Spoiler: \n||Произошла ошибка: " + err.Error() + "||"
+
+			msg := tgbotapi.NewMessage(update.FromChat().ID, spoilerErrorMessage)
+			_, err = bot.Send(msg)
+			if err != nil {
+				log.Println(err)
+			}
 			continue
 		}
 

@@ -3,9 +3,12 @@ package statehandlers
 import (
 	"context"
 	"fmt"
+	"github.com/Krabik6/meal-schedule/tg-bot/api"
+	"github.com/Krabik6/meal-schedule/tg-bot/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/redis/go-redis/v9"
 	"log"
+	"net/http"
 	"runtime/debug"
 )
 
@@ -52,91 +55,28 @@ const (
 	cancelRegistrationCallbackData  = "cancel_registration"
 )
 
-//func (rs *RegistrationStateHandler) HandleInput(ctx context.Context, userID int64, input string) error {
-//	switch rs.State {
-//	case NoRegistrationState:
-//		// Проверка команды для начала регистрации
-//		if input != "/registration" {
-//			return fmt.Errorf("unknown command")
-//		}
-//		// Ожидание ввода имени
-//		rs.State = RegistrationName
-//	case RegistrationName:
-//		// Ожидание ввода email
-//		rs.Name = input
-//		rs.State = RegistrationEmail
-//	case RegistrationEmail:
-//		// Ожидание ввода пароля
-//		rs.Email = input
-//		rs.State = RegistrationPassword
-//	case RegistrationPassword:
-//		// Ожидание подтверждения пароля
-//		rs.Password = input
-//		rs.State = RegistrationConfirmPassword
-//	case RegistrationConfirmPassword:
-//		if input == "Подтвердить" {
-//			// Подтверждение регистрации
-//			rs.State = RegistrationComplete
-//			return rs.handleRegistrationComplete(ctx, userID)
-//		} else if input == "Отмена" {
-//			// Отмена регистрации, переход к начальному состоянию
-//			rs.State = NoRegistrationState
-//			err := rs.SetUserRegistrationState(ctx, userID)
-//			if err != nil {
-//				return err
-//			}
-//			err = rs.DeleteUserRegistrationData(ctx, userID)
-//			if err != nil {
-//				return err
-//			}
-//			return nil
-//		} else {
-//			return fmt.Errorf("unknown command")
-//		}
-//	default:
-//		return fmt.Errorf("unknown registration state")
-//	}
-//
-//	// Сохранение состояния в Redis
-//	err := rs.saveStateRegistrationToRedis(ctx, userID)
-//	if err != nil {
-//		stackTrace := debug.Stack()
-//		fmt.Println("Stack trace:", string(stackTrace))
-//		return err
-//	}
-//
-//	// Вывод текущего состояния
-//	fmt.Println("RegistrationStateHandler:", rs.State)
-//
-//	return nil
-//}
-
 // HandleCallbackQuery callback query handler
-func (rs *RegistrationStateHandler) HandleCallbackQuery(ctx context.Context, userID int64, query tgbotapi.CallbackQuery) error {
+func (rs *RegistrationStateHandler) HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error {
+	query := update.CallbackQuery
 	data := query.Data
 	log.Println("state: ", rs.State)
 	switch rs.State {
 	case RegistrationConfirmation:
 		if data == confirmButton {
 			log.Println("подтверждение регистрации")
-			// Подтверждение регистрации
-			rs.State = NoRegistrationState
-			err := rs.SetUserRegistrationState(ctx, userID)
-			if err != nil {
-				return err
-			}
-			err = rs.DeleteUserRegistrationData(ctx, userID)
-			if err != nil {
-				return err
-			}
-			return rs.handleRegistrationComplete(ctx, userID)
+
+			return rs.handleRegistrationComplete(ctx, userID, update)
 
 		} else if data == cancelButton {
-			log.Println("Отмена регистрации")
+			message := tgbotapi.NewMessage(userID, "Регистрация отменена")
+			_, err := rs.Bot.Send(message)
+			if err != nil {
+				return err
+			}
 
 			// Отмена регистрации, переход к начальному состоянию
 			rs.State = NoRegistrationState
-			err := rs.SetUserRegistrationState(ctx, userID)
+			err = rs.SetUserRegistrationState(ctx, userID)
 			if err != nil {
 				return err
 			}
@@ -296,7 +236,6 @@ func (rs *RegistrationStateHandler) handleNoRegistrationState(userID int64) erro
 }
 
 func (rs *RegistrationStateHandler) handleRegistrationName(userID int64) error {
-	fmt.Printf("Hello, %s! Please provide your email.\n", rs.Name)
 	// send message to user
 	_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, fmt.Sprintf("Hello, %s! Please provide your email.\n", rs.Name)))
 	if err != nil {
@@ -309,9 +248,8 @@ func (rs *RegistrationStateHandler) handleRegistrationName(userID int64) error {
 }
 
 func (rs *RegistrationStateHandler) handleRegistrationEmail(ctx context.Context, userID int64) error {
-	fmt.Printf("Email %s is registered. Please provide your password.\n", rs.Email)
 	// send message to user
-	_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, fmt.Sprintf("Email %s is registered. Please provide your password.\n", rs.Email)))
+	_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, fmt.Sprintf("Username %s is registered. Please provide your password.\n", rs.Email)))
 	if err != nil {
 		return err
 	}
@@ -323,7 +261,6 @@ func (rs *RegistrationStateHandler) handleRegistrationEmail(ctx context.Context,
 }
 
 func (rs *RegistrationStateHandler) handleRegistrationPassword(ctx context.Context, userID int64) error {
-	fmt.Println("Password is set. Please confirm your password.")
 	// send message to user
 	_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, "Password is set. Please confirm your password."))
 	if err != nil {
@@ -338,8 +275,6 @@ func (rs *RegistrationStateHandler) handleRegistrationPassword(ctx context.Conte
 
 func (rs *RegistrationStateHandler) handleRegistrationConfirmPassword(ctx context.Context, userID int64, update tgbotapi.Update) error {
 	if rs.ConfirmedPwd == rs.Password {
-		fmt.Println("Registration complete!")
-		// send message to user
 		_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, "Passwords match."))
 		if err != nil {
 			return err
@@ -350,13 +285,10 @@ func (rs *RegistrationStateHandler) handleRegistrationConfirmPassword(ctx contex
 			return err
 		}
 	} else {
-		fmt.Println("Password confirmation failed.")
-		// send message to user
 		_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, "Password confirmation failed. Please try again. \n Provide your password."))
 		if err != nil {
 			return err
 		}
-		// Меняем состояние на ввод пароля
 		rs.State = RegistrationPassword
 	}
 
@@ -364,14 +296,8 @@ func (rs *RegistrationStateHandler) handleRegistrationConfirmPassword(ctx contex
 	return nil
 }
 
-// confirm registration: message to user with registration data and two buttons (callback-query) : confirm and cancel. If confirm - delete state from redis and log in console. If cancel - delete state from redis and log in console
-
 func (rs *RegistrationStateHandler) handleRegistrationConfirmation(ctx context.Context, userID int64, update tgbotapi.Update) error {
-	// Подтверждение регистрации
-	fmt.Println("Please confirm your registration data.")
-	// информация о пользователе (имя, email, пароль) и две кнопки: подтвердить и отменить
-	// ввведенные пользователем данные
-	reply := fmt.Sprintf("Please confirm your registration data.\nName: %s\nEmail: %s\nPassword: %s\n", rs.Name, rs.Email, rs.Password)
+	reply := fmt.Sprintf("Please confirm your registration data.\nName: %s\nUsername: %s\nPassword: %s\n", rs.Name, rs.Email, rs.Password)
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
 	// Кнопки подтверждения и отмены
 	confirmBtn := tgbotapi.NewInlineKeyboardButtonData(confirmButton, confirmButton)
@@ -389,17 +315,21 @@ func (rs *RegistrationStateHandler) handleRegistrationConfirmation(ctx context.C
 
 }
 
-func (rs *RegistrationStateHandler) handleRegistrationComplete(ctx context.Context, userID int64) error {
-	// Дополнительная логика после завершения регистрации
-	fmt.Println("Thank you for registering!")
-
+func (rs *RegistrationStateHandler) handleRegistrationComplete(ctx context.Context, userID int64, update tgbotapi.Update) error {
 	_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, "Registration complete!\n"))
 	if err != nil {
 		return err
 	}
-	log.Println("Registration complete!")
-	//}
-
+	user := model.SignUpCredentials{
+		Username: rs.Email,
+		Password: rs.Password,
+		Name:     rs.Name,
+	}
+	client := &http.Client{}
+	err = api.SignUp(rs.Bot, update, client, user)
+	if err != nil {
+		return err
+	}
 	// Обнуляем состояние регистрации
 	rs.State = NoRegistrationState
 
@@ -414,24 +344,11 @@ func (rs *RegistrationStateHandler) handleRegistrationComplete(ctx context.Conte
 		return err
 	}
 
-	err = rs.StateHandler.deleteUserState(ctx, userID)
+	err = rs.StateHandler.DeleteUserState(ctx, userID)
+	if err != nil {
+		return err
+	}
 
 	// Удаляем состояние из Redis, так как регистрация завершена
 	return nil
 }
-
-//// Новая функция для начала регистрации
-//func (rs *RegistrationStateHandler) StartRegistration(ctx context.Context, userID int64) error {
-//	fmt.Println("Welcome! Please provide your name.")
-//	// Меняем состояние регистрации на имя
-//	rs.State = RegistrationName
-//
-//	// Очищаем данные пользователя
-//	rs.Name = ""
-//	rs.Email = ""
-//	rs.Password = ""
-//	rs.ConfirmedPwd = ""
-//
-//	// Сохраняем состояние в Redis
-//	return rs.saveStateRegistrationToRedis(ctx, userID)
-//}

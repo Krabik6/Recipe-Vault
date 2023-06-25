@@ -8,13 +8,13 @@ import (
 )
 
 func (s State) MarshalBinary() ([]byte, error) {
-	// Преобразование значения State в байтовый массив
+	// Преобразование значения LocalState в байтовый массив
 	data := []byte(strconv.Itoa(int(s)))
 	return data, nil
 }
 
 func (s *State) UnmarshalBinary(data []byte) error {
-	// Преобразование байтового массива в значение State
+	// Преобразование байтового массива в значение LocalState
 	value, err := strconv.Atoi(string(data))
 	if err != nil {
 		return err
@@ -64,8 +64,8 @@ func (sh *StateHandler) getUserState(ctx context.Context, userID int64) (State, 
 	return state, nil // Return the user state
 }
 
-// deleteUserState deletes the user state from Redis.
-func (sh *StateHandler) deleteUserState(ctx context.Context, userID int64) error {
+// DeleteUserState deletes the user state from Redis.
+func (sh *StateHandler) DeleteUserState(ctx context.Context, userID int64) error {
 	// Forming the key for the user
 	key := fmt.Sprintf(userState, userID)
 
