@@ -83,8 +83,17 @@ func (ls *LoginStateHandler) HandleCallbackQuery(ctx context.Context, userID int
 			}
 			return nil
 		} else {
+
 			return fmt.Errorf("unknown command")
 		}
+	case NoLoginState:
+		msg := tgbotapi.NewMessage(userID, "To exit the current process, please press the \"Cancel\" button or enter \"/cancel\".") // Пустое текстовое сообщение
+		msg.ReplyMarkup = ls.StateHandler.createCancelKeyboard()
+		_, err := ls.StateHandler.Bot.Send(msg)
+		if err != nil {
+			return err
+		}
+		return nil
 	default:
 		// print query
 		log.Println(query.Data)
@@ -162,7 +171,8 @@ func (ls *LoginStateHandler) HandleMessage(ctx context.Context, userID int64, me
 			return err
 		}
 		// Add message to the user
-		msg := tgbotapi.NewMessage(userID, "Login canceled\nTo log in, enter /login")
+		msg := tgbotapi.NewMessage(userID, "Login canceled")
+		msg.ReplyMarkup = ls.StateHandler.createMainMenu(ctx, userID)
 		_, err = ls.Bot.Send(msg)
 		if err != nil {
 			return err
@@ -171,6 +181,14 @@ func (ls *LoginStateHandler) HandleMessage(ctx context.Context, userID int64, me
 		return nil
 	}
 	switch ls.State {
+	case NoLoginState:
+		//send cancel button without message
+		msg := tgbotapi.NewMessage(userID, "To exit the current process, please press the \"Cancel\" button or enter \"/cancel\".") // Пустое текстовое сообщение
+		msg.ReplyMarkup = ls.StateHandler.createCancelKeyboard()
+		_, err := ls.StateHandler.Bot.Send(msg)
+		if err != nil {
+			return err
+		}
 	case LoginEmail:
 		ls.Username = message
 	case LoginPassword:
@@ -285,6 +303,8 @@ func (ls *LoginStateHandler) handleLoginComplete(ctx context.Context, userID int
 
 	// Add message to the user with the token
 	msg := tgbotapi.NewMessage(userID, fmt.Sprintf("Login complete! Your token is: %s\n", token))
+	msg.ReplyMarkup = ls.StateHandler.createMainMenu(ctx, userID)
+
 	_, err = ls.Bot.Send(msg)
 	if err != nil {
 		return err

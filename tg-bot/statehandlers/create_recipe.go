@@ -190,7 +190,13 @@ func (crs *CreateRecipeStateHandler) handleState(ctx context.Context, userID int
 	//handle state, save data to redis
 	switch crs.State {
 	case NoCreateRecipeState:
-		err := crs.handleNoCreateRecipeState(userID)
+		msg := tgbotapi.NewMessage(userID, "To exit the current process, please press the \"Cancel\" button or enter \"/cancel\".") // Пустое текстовое сообщение
+		msg.ReplyMarkup = crs.StateHandler.createCancelKeyboard()
+		_, err := crs.StateHandler.Bot.Send(msg)
+		if err != nil {
+			return err
+		}
+		err = crs.handleNoCreateRecipeState(userID)
 		if err != nil {
 			return err
 		}
@@ -399,6 +405,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmYes(ctx context.Co
 	}
 
 	msg := tgbotapi.NewMessage(userID, fmt.Sprintf("Recipe created with id %d", recipeId))
+	msg.ReplyMarkup = crs.StateHandler.createMainMenu(ctx, userID)
 	_, err = crs.Bot.Send(msg)
 	if err != nil {
 		return err
@@ -437,6 +444,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmNo(ctx context.Con
 // handleCancel that cancel the creation of a recipe: delete the state from redis and send a message to the user
 func (crs *CreateRecipeStateHandler) handleCancel(ctx context.Context, userID int64) error {
 	// local state to no state and delete the state from redis, send a message to the user
+
 	crs.State = NoCreateRecipeState
 	err := crs.DeleteUserState(ctx, userID)
 	if err != nil {
@@ -450,7 +458,9 @@ func (crs *CreateRecipeStateHandler) handleCancel(ctx context.Context, userID in
 	if err != nil {
 		return err
 	}
+
 	msg := tgbotapi.NewMessage(userID, "Creation of recipe canceled")
+	msg.ReplyMarkup = crs.StateHandler.createMainMenu(ctx, userID)
 	_, err = crs.Bot.Send(msg)
 	if err != nil {
 		return err

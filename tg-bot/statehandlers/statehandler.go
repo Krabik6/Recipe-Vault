@@ -10,9 +10,10 @@ import (
 )
 
 type StateHandler struct {
-	State  State
-	Client *redis.Client
-	Bot    *tgbotapi.BotAPI
+	State      State
+	Registered bool
+	Client     *redis.Client
+	Bot        *tgbotapi.BotAPI
 	// Другие общие поля и методы, если необходимо
 }
 
@@ -27,18 +28,11 @@ const (
 )
 
 // constants for commands (start, registration, etc)
-const (
-	startCommand        = "/start"
-	registrationCommand = "/registration"
-	createRecipeCommand = "/create_recipe"
-	logInCommand        = "/login"
-	cancelCommand       = "/cancel"
-)
 
 // constant for redis key (user state)
 const userState = "user_state:%d"
 
-// Метод для обработки входящих сообщений в соответствии с текущим состоянием
+// HandleMessage Метод для обработки входящих сообщений в соответствии с текущим состоянием
 func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message string, update tgbotapi.Update) error {
 	switch sh.State {
 	case NoState:
@@ -127,8 +121,9 @@ func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message
 	}
 }
 
-// handle callback query
+// HandleCallbackQuery handle callback query
 func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error {
+	log.Println("HandleCallbackQuery global state: ", sh.State)
 	switch sh.State {
 	case RecipeCreationState:
 		recipeCreationHandler := &CreateRecipeStateHandler{
@@ -224,6 +219,11 @@ func HandleCommand(ctx context.Context, update tgbotapi.Update, redisClient *red
 			return err
 		}
 		log.Println("global state: ", state)
+		//create cancel button
+		if err != nil {
+			return err
+		}
+
 		return stateHandler.HandleMessage(ctx, userID, update.Message.Text, update)
 	} else if update.CallbackQuery != nil {
 		userID = update.CallbackQuery.Message.Chat.ID

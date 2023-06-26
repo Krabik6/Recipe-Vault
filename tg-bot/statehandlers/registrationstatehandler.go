@@ -104,7 +104,13 @@ func (rs *RegistrationStateHandler) HandleCallbackQuery(ctx context.Context, use
 func (rs *RegistrationStateHandler) HandleState(ctx context.Context, userID int64, update tgbotapi.Update) error {
 	switch rs.State {
 	case NoRegistrationState:
-		err := rs.handleNoRegistrationState(userID)
+		msg := tgbotapi.NewMessage(userID, "To exit the current process, please press the \"Cancel\" button or enter \"/cancel\".") // Пустое текстовое сообщение
+		msg.ReplyMarkup = rs.StateHandler.createCancelKeyboard()
+		_, err := rs.StateHandler.Bot.Send(msg)
+		if err != nil {
+			return err
+		}
+		err = rs.handleNoRegistrationState(userID)
 		if err != nil {
 			return err
 		}
@@ -166,6 +172,7 @@ func (rs *RegistrationStateHandler) HandleState(ctx context.Context, userID int6
 func (rs *RegistrationStateHandler) HandleMessage(ctx context.Context, userID int64, message string, update tgbotapi.Update) error {
 	//check if message is cancel then cancel registration
 	if message == "/cancel" {
+
 		rs.State = NoRegistrationState
 		err := rs.SetUserRegistrationState(ctx, userID)
 		if err != nil {
@@ -181,11 +188,13 @@ func (rs *RegistrationStateHandler) HandleMessage(ctx context.Context, userID in
 			return err
 		}
 		//add message to user
-		msg := tgbotapi.NewMessage(userID, "Регистрация отменена \n Для регистрации введите /registration")
+		msg := tgbotapi.NewMessage(userID, "Registration canceled")
+		msg.ReplyMarkup = rs.StateHandler.createMainMenu(ctx, userID)
 		_, err = rs.Bot.Send(msg)
 		if err != nil {
 			return err
 		}
+
 		log.Println("Registration canceled, state: ", rs.State)
 		return nil
 	}
@@ -316,17 +325,14 @@ func (rs *RegistrationStateHandler) handleRegistrationConfirmation(ctx context.C
 }
 
 func (rs *RegistrationStateHandler) handleRegistrationComplete(ctx context.Context, userID int64, update tgbotapi.Update) error {
-	_, err := rs.Bot.Send(tgbotapi.NewMessage(userID, "Registration complete!\n"))
-	if err != nil {
-		return err
-	}
+
 	user := model.SignUpCredentials{
 		Username: rs.Email,
 		Password: rs.Password,
 		Name:     rs.Name,
 	}
 	client := &http.Client{}
-	err = api.SignUp(rs.Bot, update, client, user)
+	err := api.SignUp(rs.Bot, update, client, user)
 	if err != nil {
 		return err
 	}
@@ -345,6 +351,14 @@ func (rs *RegistrationStateHandler) handleRegistrationComplete(ctx context.Conte
 	}
 
 	err = rs.StateHandler.DeleteUserState(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	msg := tgbotapi.NewMessage(userID, "Registration complete!\n")
+	msg.ReplyMarkup = rs.StateHandler.createMainMenu(ctx, userID)
+	_, err = rs.Bot.Send(msg)
+
 	if err != nil {
 		return err
 	}

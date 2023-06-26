@@ -57,7 +57,7 @@ func main() {
 		//command := update.Message.Text
 		err := statehandlers.HandleCommand(ctx, update, redisClient, bot)
 		if err != nil {
-			spoilerErrorMessage := "⚠️ Spoiler: \n||Произошла ошибка: " + err.Error() + "||"
+			spoilerErrorMessage := "Произошла ошибка: " + err.Error()
 
 			msg := tgbotapi.NewMessage(update.FromChat().ID, spoilerErrorMessage)
 			_, err = bot.Send(msg)

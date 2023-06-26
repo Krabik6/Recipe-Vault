@@ -35,6 +35,10 @@ func Login(client *http.Client, user model.LoginCredentials) (string, error) {
 		return "", fmt.Errorf("код состояния %d. \nответ: %v", resp.StatusCode, string(body))
 	}
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", fmt.Errorf("неверный логин или пароль")
+	}
+
 	var authResponse model.AuthResponse
 	err = json.NewDecoder(resp.Body).Decode(&authResponse)
 	if err != nil {

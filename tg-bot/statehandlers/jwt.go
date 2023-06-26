@@ -36,3 +36,27 @@ func (sh *StateHandler) GetUserJWTToken(ctx context.Context, userID int64) (stri
 
 	return token, nil
 }
+
+// DeleteUserJWTToken deletes the JWT token for a user from Redis.
+func (sh *StateHandler) DeleteUserJWTToken(ctx context.Context, userID int64) error {
+	key := fmt.Sprintf(userJWTTokenKey, userID)
+	err := sh.Client.Del(ctx, key).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CheckLoggedIn func to check if user is logged in (returns true if logged in)
+func (sh *StateHandler) CheckLoggedIn(ctx context.Context, userID int64) (bool, error) {
+	// Getting user state from redis
+	loggedIn, err := sh.GetUserJWTToken(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	if loggedIn != "" {
+		return true, nil
+	}
+	return false, nil
+}
