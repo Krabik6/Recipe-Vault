@@ -24,6 +24,7 @@ const (
 	RegistrationState
 	RecipeCreationState
 	LogInState
+	CreateMealState
 	// Другие состояния
 )
 
@@ -94,6 +95,29 @@ func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message
 		}
 		recipeCreationHandler.State = recipeCreationState
 		return recipeCreationHandler.HandleMessage(ctx, userID, update)
+	case CreateMealState:
+		createMealHandler := &CreateMealStateHandler{
+			Client:       sh.Client,
+			StateHandler: sh,
+			Bot:          sh.Bot,
+		}
+		// set recipe creation data from redis
+		name, time, recipes, err := createMealHandler.GetUserData(ctx, userID)
+		if err != nil {
+			return err
+		}
+
+		createMealHandler.Name = name
+		createMealHandler.Time = time
+		createMealHandler.Recipes = recipes
+		createMealStateGlobal, err := createMealHandler.GetUserState(ctx, userID)
+		if err != nil {
+			return err
+		}
+		createMealHandler.State = createMealStateGlobal
+		log.Printf("Name: %s, Time: %s, Recipes: %v", name, time, recipes)
+		return createMealHandler.HandleMessage(ctx, userID, update)
+
 	case LogInState:
 		logInHandler := &LoginStateHandler{
 			Client:       sh.Client,
@@ -193,6 +217,28 @@ func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, u
 
 		logInHandler.State = logInState
 		return logInHandler.HandleCallbackQuery(ctx, userID, update)
+	case CreateMealState:
+		createMealHandler := &CreateMealStateHandler{
+			Client:       sh.Client,
+			StateHandler: sh,
+			Bot:          sh.Bot,
+		}
+		// set recipe creation data from redis
+		name, time, recipes, err := createMealHandler.GetUserData(ctx, userID)
+		if err != nil {
+			return err
+		}
+
+		createMealHandler.Name = name
+		createMealHandler.Time = time
+		createMealHandler.Recipes = recipes
+		createMealStateGlobal, err := createMealHandler.GetUserState(ctx, userID)
+		if err != nil {
+			return err
+		}
+		createMealHandler.State = createMealStateGlobal
+		log.Printf("Name: %s, Time: %s, Recipes: %v", name, time, recipes)
+		return createMealHandler.HandleCallbackQuery(ctx, userID, update)
 
 	default:
 		//print stack trace

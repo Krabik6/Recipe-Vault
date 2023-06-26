@@ -4,9 +4,8 @@ import (
 	"context"
 	"github.com/Krabik6/meal-schedule/tg-bot/statehandlers"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"log"
-
 	"github.com/redis/go-redis/v9"
+	"log"
 )
 
 const (
@@ -50,6 +49,8 @@ func main() {
 		if update.Message == nil && update.CallbackQuery == nil {
 			continue
 		}
+
+		//log.Println(update.CallbackQuery.Data)
 
 		//update.CallbackQuery.Data
 		// Обработка команд пользователя
