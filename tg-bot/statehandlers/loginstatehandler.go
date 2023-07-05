@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Krabik6/meal-schedule/tg-bot/api"
+	"github.com/Krabik6/meal-schedule/tg-bot/interfaces"
 	"github.com/Krabik6/meal-schedule/tg-bot/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/redis/go-redis/v9"
@@ -14,12 +15,14 @@ import (
 )
 
 type LoginStateHandler struct {
-	State        loginState
-	Client       *redis.Client
-	StateHandler *StateHandler
-	Bot          *tgbotapi.BotAPI
-	Username     string
-	Password     string
+	LocalState       loginState
+	JwtManager       interfaces.JwtManager
+	Client           *redis.Client
+	StateHandler     *StateHandler
+	Bot              *tgbotapi.BotAPI
+	UserStateManager interfaces.UserStateManager
+	Username         string
+	Password         string
 }
 
 type loginState int
@@ -31,7 +34,7 @@ const (
 	LoginConfirmation
 )
 
-// constant for redis keys (user login state, user login data: username, password) like const userState = "user_state:%d"
+// constant for manager keys (user login state, user login data: username, password) like const userState = "user_state:%d"
 
 // consts for buttons
 //const (
@@ -51,12 +54,12 @@ const (
 	userLoginPassword = "user_login_password:%d"
 )
 
-// HandleCallbackQuery callback query handler
+// HandleCallbackQuery callback query states
 func (ls *LoginStateHandler) HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error {
 	query := update.CallbackQuery
 	data := query.Data
-	log.Println("state: ", ls.State)
-	switch ls.State {
+	log.Println("state: ", ls.LocalState)
+	switch ls.LocalState {
 	case LoginConfirmation:
 		if data == confirmButton {
 			log.Println("Login confirmation")
@@ -67,7 +70,7 @@ func (ls *LoginStateHandler) HandleCallbackQuery(ctx context.Context, userID int
 			if err != nil {
 				return err
 			}
-			ls.State = NoLoginState
+			ls.LocalState = NoLoginState
 			err = ls.SetUserLoginState(ctx, userID)
 			if err != nil {
 				return err
@@ -76,8 +79,7 @@ func (ls *LoginStateHandler) HandleCallbackQuery(ctx context.Context, userID int
 			if err != nil {
 				return err
 			}
-			ls.StateHandler.State = NoState
-			err = ls.StateHandler.setUserState(ctx, userID)
+			err = ls.UserStateManager.DeleteUserState(ctx, userID)
 			if err != nil {
 				return err
 			}
@@ -103,8 +105,8 @@ func (ls *LoginStateHandler) HandleCallbackQuery(ctx context.Context, userID int
 
 func (ls *LoginStateHandler) HandleState(ctx context.Context, userID int64, update tgbotapi.Update) error {
 	// state
-	log.Println("state of handle state: ", ls.State)
-	switch ls.State {
+	log.Println("state of handle state: ", ls.LocalState)
+	switch ls.LocalState {
 	case NoLoginState:
 		err := ls.handleLoginEmail(userID)
 		if err != nil {
@@ -131,7 +133,7 @@ func (ls *LoginStateHandler) HandleState(ctx context.Context, userID int64, upda
 		stackTrace := debug.Stack()
 		fmt.Println("Stack trace:", string(stackTrace))
 		// Save state to Redis
-		ls.State = NoLoginState
+		ls.LocalState = NoLoginState
 		err := ls.SetUserLoginState(ctx, userID)
 		if err != nil {
 			return err
@@ -156,7 +158,7 @@ func (ls *LoginStateHandler) HandleState(ctx context.Context, userID int64, upda
 func (ls *LoginStateHandler) HandleMessage(ctx context.Context, userID int64, message string, update tgbotapi.Update) error {
 	// Check if the message is "/cancel" to cancel the login process
 	if message == "/cancel" {
-		ls.State = NoLoginState
+		ls.LocalState = NoLoginState
 		err := ls.SetUserLoginState(ctx, userID)
 		if err != nil {
 			return err
@@ -165,8 +167,7 @@ func (ls *LoginStateHandler) HandleMessage(ctx context.Context, userID int64, me
 		if err != nil {
 			return err
 		}
-		ls.StateHandler.State = NoState
-		err = ls.StateHandler.setUserState(ctx, userID)
+		err = ls.UserStateManager.DeleteUserState(ctx, userID)
 		if err != nil {
 			return err
 		}
@@ -177,10 +178,10 @@ func (ls *LoginStateHandler) HandleMessage(ctx context.Context, userID int64, me
 		if err != nil {
 			return err
 		}
-		log.Println("Login canceled, state: ", ls.State)
+		log.Println("Login canceled, state: ", ls.LocalState)
 		return nil
 	}
-	switch ls.State {
+	switch ls.LocalState {
 	case NoLoginState:
 		//send cancel button without message
 		msg := tgbotapi.NewMessage(userID, "To exit the current process, please press the \"Cancel\" button or enter \"/cancel\".") // Пустое текстовое сообщение
@@ -222,7 +223,7 @@ func (ls *LoginStateHandler) handleNoLoginState(userID int64) error {
 		return err
 	}
 	// Change login state to username
-	ls.State = LoginEmail
+	ls.LocalState = LoginEmail
 	return nil
 }
 
@@ -233,7 +234,7 @@ func (ls *LoginStateHandler) handleLoginEmail(userID int64) error {
 		return err
 	}
 	// Change login state to password
-	ls.State = LoginEmail
+	ls.LocalState = LoginEmail
 	return nil
 }
 
@@ -244,7 +245,7 @@ func (ls *LoginStateHandler) handleLoginPassword(userID int64) error {
 		return err
 	}
 	// Change login state to confirmation
-	ls.State = LoginPassword
+	ls.LocalState = LoginPassword
 	return nil
 }
 
@@ -264,7 +265,7 @@ func (ls *LoginStateHandler) handleLoginConfirmation(ctx context.Context, userID
 		return err
 	}
 	// Change login state to confirmation
-	ls.State = LoginConfirmation
+	ls.LocalState = LoginConfirmation
 	return nil
 }
 
@@ -278,12 +279,12 @@ func (ls *LoginStateHandler) handleLoginComplete(ctx context.Context, userID int
 	if err != nil {
 		return fmt.Errorf("error logging in: %v", err)
 	}
-	err = ls.StateHandler.SetUserJWTToken(ctx, userID, token)
+	err = ls.JwtManager.SetUserJWTToken(ctx, userID, token)
 	if err != nil {
 		return err
 	}
 	// Reset login state
-	ls.State = NoLoginState
+	ls.LocalState = NoLoginState
 
 	// Delete state from Redis
 	err = ls.DeleteUserLoginState(ctx, userID)
@@ -296,7 +297,7 @@ func (ls *LoginStateHandler) handleLoginComplete(ctx context.Context, userID int
 		return err
 	}
 
-	err = ls.StateHandler.DeleteUserState(ctx, userID)
+	err = ls.UserStateManager.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
 	}

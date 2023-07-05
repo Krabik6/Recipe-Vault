@@ -32,7 +32,7 @@ func (cms *createMealState) UnmarshalBinary(data []byte) error {
 
 // SetUserState sets the create meal state for a user in Redis.
 func (cms *CreateMealStateHandler) SetUserState(ctx context.Context, userID int64) error {
-	state, err := cms.State.MarshalBinary()
+	state, err := cms.LocalState.MarshalBinary()
 	if err != nil {
 		return err
 	}

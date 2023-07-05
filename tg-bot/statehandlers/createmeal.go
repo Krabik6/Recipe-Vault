@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Krabik6/meal-schedule/internal/models"
 	"github.com/Krabik6/meal-schedule/tg-bot/api"
+	"github.com/Krabik6/meal-schedule/tg-bot/interfaces"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/redis/go-redis/v9"
 	"log"
@@ -27,13 +28,15 @@ const (
 )
 
 type CreateMealStateHandler struct {
-	Bot          *tgbotapi.BotAPI
-	StateHandler *StateHandler
-	State        createMealState
-	Client       *redis.Client
-	Name         string
-	Time         string
-	Recipes      []int
+	Bot              *tgbotapi.BotAPI
+	StateHandler     *StateHandler
+	LocalState       createMealState
+	UserStateManager interfaces.UserStateManager
+	JwtManager       interfaces.JwtManager
+	Client           *redis.Client
+	Name             string
+	Time             string
+	Recipes          []int
 }
 
 const (
@@ -44,10 +47,10 @@ const (
 )
 
 func (cms *CreateMealStateHandler) HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error {
-	fmt.Println(cms.State, "Create meal state")
+	fmt.Println(cms.LocalState, "Create meal state")
 	query := update.CallbackQuery
 	data := query.Data
-	switch cms.State {
+	switch cms.LocalState {
 	case CreateMealConfirmation:
 		if data == "yes" {
 			return cms.handleCreateMealConfirmYes(ctx, userID)
@@ -80,7 +83,7 @@ func (cms *CreateMealStateHandler) HandleCallbackQuery(ctx context.Context, user
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("unknown state: damn%d", cms.State)
+		return fmt.Errorf("unknown state: damn%d", cms.LocalState)
 	}
 
 	//err := cms.handleState(ctx, userID)
@@ -94,12 +97,12 @@ func (cms *CreateMealStateHandler) HandleCallbackQuery(ctx context.Context, user
 
 // HandleMessage handles message for create meal state
 func (cms *CreateMealStateHandler) HandleMessage(ctx context.Context, userID int64, update tgbotapi.Update) error {
-	fmt.Println(cms.State, "Create meal state")
+	fmt.Println(cms.LocalState, "Create meal state")
 	message := update.Message.Text
 	if message == "/cancel" {
 		return cms.handleCancel(ctx, userID)
 	}
-	switch cms.State {
+	switch cms.LocalState {
 	//case NoCreateMealState:
 	//	return cms.handleNoState(userID, update)
 	case CreateMealName:
@@ -134,7 +137,7 @@ func (cms *CreateMealStateHandler) HandleMessage(ctx context.Context, userID int
 			if err != nil {
 				return err
 			}
-			return fmt.Errorf("unknown state there: %d", cms.State)
+			return fmt.Errorf("unknown state there: %d", cms.LocalState)
 		}
 	}
 
@@ -161,8 +164,8 @@ func extractRecipeID(data string) (int, error) {
 
 // handleState handles state for create meal state
 func (cms *CreateMealStateHandler) handleState(ctx context.Context, userID int64, update tgbotapi.Update) error {
-	fmt.Println(cms.State, "Create meal state")
-	switch cms.State {
+	fmt.Println(cms.LocalState, "Create meal state")
+	switch cms.LocalState {
 	case NoCreateMealState:
 		msg := tgbotapi.NewMessage(userID, "To exit the current process, please press the \"Cancel\" button or enter \"/cancel\".") // Пустое текстовое сообщение
 		msg.ReplyMarkup = cms.StateHandler.createCancelKeyboard()
@@ -207,7 +210,7 @@ func (cms *CreateMealStateHandler) handleState(ctx context.Context, userID int64
 	//		return err
 	//	}
 	default:
-		return fmt.Errorf("unknown state: %d", cms.State)
+		return fmt.Errorf("unknown state: %d", cms.LocalState)
 	}
 
 	err := cms.SetUserData(ctx, userID)
@@ -222,11 +225,11 @@ func (cms *CreateMealStateHandler) handleState(ctx context.Context, userID int64
 	return nil
 }
 
-// handleCancel that cancel the creation of a recipe: delete the state from redis and send a message to the user
+// handleCancel that cancel the creation of a recipe: delete the state from manager and send a message to the user
 func (cms *CreateMealStateHandler) handleCancel(ctx context.Context, userID int64) error {
-	// local state to no state and delete the state from redis, send a message to the user
+	// local state to no state and delete the state from manager, send a message to the user
 
-	cms.State = NoCreateMealState
+	cms.LocalState = NoCreateMealState
 	err := cms.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
@@ -235,7 +238,7 @@ func (cms *CreateMealStateHandler) handleCancel(ctx context.Context, userID int6
 	if err != nil {
 		return err
 	}
-	err = cms.StateHandler.DeleteUserState(ctx, userID)
+	err = cms.UserStateManager.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -252,32 +255,32 @@ func (cms *CreateMealStateHandler) handleCancel(ctx context.Context, userID int6
 
 // handleNoCreateMealState handles no create meal state
 func (cms *CreateMealStateHandler) handleNoCreateMealState(userID int64) error {
-	// local state to no state and delete the state from redis, send a message to the user
+	// local state to no state and delete the state from manager, send a message to the user
 	msg := tgbotapi.NewMessage(userID, "Enter the name of the meal plan")
 	_, err := cms.Bot.Send(msg)
 	if err != nil {
 		return err
 	}
-	cms.State = CreateMealName
+	cms.LocalState = CreateMealName
 	return nil
 }
 
 // handleCreateMealName handles create meal name state
 func (cms *CreateMealStateHandler) handleCreateMealName(userID int64) error {
-	// local state to no state and delete the state from redis, send a message to the user
+	// local state to no state and delete the state from manager, send a message to the user
 	//format 2022-05-21 00:0:31
 	msg := tgbotapi.NewMessage(userID, "Enter the time of the meal plan in the format 2022-05-21 00:0:31")
 	_, err := cms.Bot.Send(msg)
 	if err != nil {
 		return err
 	}
-	cms.State = CreateMealTime
+	cms.LocalState = CreateMealTime
 	return nil
 }
 
 // handleCreateMealTime handles create meal time state
 func (cms *CreateMealStateHandler) handleCreateMealTime(ctx context.Context, userID int64) error {
-	// local state to no state and delete the state from redis, send a message to the user
+	// local state to no state and delete the state from manager, send a message to the user
 	//format 2022-05-21 00:0:31
 	err := cms.StateHandler.RecipesList(ctx, userID)
 	if err != nil {
@@ -299,13 +302,13 @@ func (cms *CreateMealStateHandler) handleCreateMealTime(ctx context.Context, use
 	if err != nil {
 		return err
 	}
-	cms.State = CreateMealRecipes
+	cms.LocalState = CreateMealRecipes
 	return nil
 }
 
 // handleCreateMealRecipes handles create meal recipes state, send a message to the user with the the info about the meal plan
 func (cms *CreateMealStateHandler) handleCreateMealRecipes(userID int64) error {
-	// local state to no state and delete the state from redis, send a message to the user
+	// local state to no state and delete the state from manager, send a message to the user
 	reply := fmt.Sprintf("Meal plan: \n Name: %s \n Time: %s \n Recipes: %v", cms.Name, cms.Time, cms.Recipes)
 	msg := tgbotapi.NewMessage(userID, reply)
 	yesButton := tgbotapi.NewInlineKeyboardButtonData("yes", "yes")
@@ -315,19 +318,18 @@ func (cms *CreateMealStateHandler) handleCreateMealRecipes(userID int64) error {
 	if err != nil {
 		return err
 	}
-	cms.State = CreateMealConfirmation
+	cms.LocalState = CreateMealConfirmation
 	return nil
 }
 
 // handleCreateMealConfirmYes handles the CreateMealConfirmation state when the user confirms the creation of the meal: set the state to NoCreateMealState and send a message to the user that the meal is created
 func (cms *CreateMealStateHandler) handleCreateMealConfirmYes(ctx context.Context, userID int64) error {
-	log.Println("adsfgdhghdb")
 	meal := &models.Meal{
 		Name:    cms.Name,
 		AtTime:  cms.Time,
 		Recipes: cms.Recipes,
 	}
-	token, err := cms.StateHandler.GetUserJWTToken(ctx, userID)
+	token, err := cms.JwtManager.GetUserJWTToken(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -336,7 +338,7 @@ func (cms *CreateMealStateHandler) handleCreateMealConfirmYes(ctx context.Contex
 	if err != nil {
 		return err
 	}
-	cms.State = NoCreateMealState
+	cms.LocalState = NoCreateMealState
 	err = cms.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
@@ -347,7 +349,7 @@ func (cms *CreateMealStateHandler) handleCreateMealConfirmYes(ctx context.Contex
 		return err
 	}
 
-	err = cms.StateHandler.DeleteUserState(ctx, userID)
+	err = cms.UserStateManager.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -362,7 +364,7 @@ func (cms *CreateMealStateHandler) handleCreateMealConfirmYes(ctx context.Contex
 
 // handleCreateMealConfirmNo handles the CreateMealConfirmation state when the user does not confirm the creation of the meal: set the state to NoCreateMealState and send a message to the user that the meal is not created
 func (cms *CreateMealStateHandler) handleCreateMealConfirmNo(ctx context.Context, userID int64) error {
-	cms.State = NoCreateMealState
+	cms.LocalState = NoCreateMealState
 	err := cms.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
@@ -373,7 +375,7 @@ func (cms *CreateMealStateHandler) handleCreateMealConfirmNo(ctx context.Context
 		return err
 	}
 
-	err = cms.StateHandler.DeleteUserState(ctx, userID)
+	err = cms.UserStateManager.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
 	}

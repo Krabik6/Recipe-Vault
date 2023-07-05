@@ -31,7 +31,7 @@ func (ls *loginState) UnmarshalBinary(data []byte) error {
 
 // SetUserLoginState устанавливает состояние входа пользователя в Redis.
 func (ls *LoginStateHandler) SetUserLoginState(ctx context.Context, userID int64) error {
-	state, err := ls.State.MarshalBinary()
+	state, err := ls.LocalState.MarshalBinary()
 	if err != nil {
 		return err
 	}

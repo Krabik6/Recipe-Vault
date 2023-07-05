@@ -3,6 +3,9 @@ package statehandlers
 import (
 	"context"
 	"fmt"
+	"github.com/Krabik6/meal-schedule/tg-bot/interfaces"
+	"github.com/Krabik6/meal-schedule/tg-bot/manager"
+	"github.com/Krabik6/meal-schedule/tg-bot/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/redis/go-redis/v9"
 	"log"
@@ -10,51 +13,67 @@ import (
 )
 
 type StateHandler struct {
-	State      State
-	Registered bool
-	Client     *redis.Client
-	Bot        *tgbotapi.BotAPI
+	//LocalState  LocalState
+	Client           *redis.Client
+	Bot              *tgbotapi.BotAPI
+	UserStateManager interfaces.UserStateManager
+
 	// Другие общие поля и методы, если необходимо
 }
 
-type State int
+// UserData - struct for user data
+//type UserData struct {
+//	LocalState  model.LocalState
+//	UserID int64
+//	Update tgbotapi.Update
+//}
+//// NewUserData - constructor for UserData
+//func NewUserData(state LocalState, userID int64, update tgbotapi.Update) *UserData {
+//	return &UserData{
+//		LocalState:  state,
+//		UserID: userID,
+//		Update: update,
+//	}
+//}
 
-const (
-	NoState State = iota
-	RegistrationState
-	RecipeCreationState
-	LogInState
-	CreateMealState
-	// Другие состояния
-)
-
-// constants for commands (start, registration, etc)
-
-// constant for redis key (user state)
-const userState = "user_state:%d"
+// NewStateHandler - constructor for StateHandler
+func NewStateHandler(client *redis.Client, bot *tgbotapi.BotAPI) *StateHandler {
+	return &StateHandler{
+		Client:           client,
+		Bot:              bot,
+		UserStateManager: manager.NewRedisUserStateManager(client),
+	}
+}
 
 // HandleMessage Метод для обработки входящих сообщений в соответствии с текущим состоянием
 func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message string, update tgbotapi.Update) error {
-	switch sh.State {
-	case NoState:
+	//get user state from manager
+	state, err := sh.UserStateManager.GetUserState(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	switch state {
+	case model.NoState:
 		noStateHandler := &NoStateHandler{
-			Client:       sh.Client,
-			Bot:          sh.Bot,
-			StateHandler: sh,
+			Bot:              sh.Bot,
+			StateHandler:     sh,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
-		err := noStateHandler.HandleMessage(ctx, userID, message)
+		state, err = noStateHandler.HandleMessage(ctx, userID, message, state)
 		if err != nil {
 			return err
 		}
-		if sh.State != NoState {
+		if state != model.NoState {
 			return sh.HandleMessage(ctx, userID, message, update)
 		}
 		return nil
-	case RegistrationState:
+	case model.RegistrationState:
 		registrationHandler := &RegistrationStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
 		name, email, password, err := registrationHandler.GetUserRegistrationData(ctx, userID)
 		if err != nil {
@@ -67,15 +86,16 @@ func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message
 		if err != nil {
 			return err
 		}
-		registrationHandler.State = regState
+		registrationHandler.LocalState = regState
 		return registrationHandler.HandleMessage(ctx, userID, message, update)
-	case RecipeCreationState:
+	case model.RecipeCreationState:
 		recipeCreationHandler := &CreateRecipeStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
-		// set recipe creation data from redis
+		// set recipe creation data from manager
 		title, description, isPublic, cost, timeToPrepare, healthy, err := recipeCreationHandler.GetUserData(ctx, userID)
 		if err != nil {
 			return err
@@ -88,20 +108,21 @@ func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message
 		recipeCreationHandler.Healthy = healthy
 		//Print
 		log.Printf("Title: %s, Description: %s, IsPublic: %t, Cost: %d, TimeToPrepare: %d, Healthy: %t", title, description, isPublic, cost, timeToPrepare, healthy)
-		// set recipe creation state from redis
+		// set recipe creation state from manager
 		recipeCreationState, err := recipeCreationHandler.GetUserState(ctx, userID)
 		if err != nil {
 			return err
 		}
-		recipeCreationHandler.State = recipeCreationState
+		recipeCreationHandler.LocalState = recipeCreationState
 		return recipeCreationHandler.HandleMessage(ctx, userID, update)
-	case CreateMealState:
+	case model.CreateMealState:
 		createMealHandler := &CreateMealStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
-		// set recipe creation data from redis
+		// set recipe creation data from manager
 		name, time, recipes, err := createMealHandler.GetUserData(ctx, userID)
 		if err != nil {
 			return err
@@ -114,15 +135,16 @@ func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message
 		if err != nil {
 			return err
 		}
-		createMealHandler.State = createMealStateGlobal
+		createMealHandler.LocalState = createMealStateGlobal
 		log.Printf("Name: %s, Time: %s, Recipes: %v", name, time, recipes)
 		return createMealHandler.HandleMessage(ctx, userID, update)
 
-	case LogInState:
+	case model.LogInState:
 		logInHandler := &LoginStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
 		username, password, err := logInHandler.GetUserLoginData(ctx, userID)
 		if err != nil {
@@ -136,7 +158,7 @@ func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message
 			return err
 		}
 
-		logInHandler.State = logInState
+		logInHandler.LocalState = logInState
 		return logInHandler.HandleMessage(ctx, userID, message, update)
 	default:
 		//print stack trace
@@ -147,15 +169,19 @@ func (sh *StateHandler) HandleMessage(ctx context.Context, userID int64, message
 
 // HandleCallbackQuery handle callback query
 func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error {
-	log.Println("HandleCallbackQuery global state: ", sh.State)
-	switch sh.State {
-	case RecipeCreationState:
+	state, err := sh.UserStateManager.GetUserState(ctx, userID)
+	if err != nil {
+		return err
+	}
+	switch state {
+	case model.RecipeCreationState:
 		recipeCreationHandler := &CreateRecipeStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
-		// set recipe creation data from redis
+		// set recipe creation data from manager
 		title, description, isPublic, cost, timeToPrepare, healthy, err := recipeCreationHandler.GetUserData(ctx, userID)
 		if err != nil {
 			return err
@@ -168,18 +194,19 @@ func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, u
 		recipeCreationHandler.Healthy = healthy
 		//Print
 		log.Printf("Title: %s, Description: %s, IsPublic: %t, Cost: %d, TimeToPrepare: %d, Healthy: %t", title, description, isPublic, cost, timeToPrepare, healthy)
-		// set recipe creation state from redis
+		// set recipe creation state from manager
 		recipeCreationState, err := recipeCreationHandler.GetUserState(ctx, userID)
 		if err != nil {
 			return err
 		}
-		recipeCreationHandler.State = recipeCreationState
+		recipeCreationHandler.LocalState = recipeCreationState
 		return recipeCreationHandler.HandleCallbackQuery(ctx, userID, update)
-	case RegistrationState:
+	case model.RegistrationState:
 		rsh := RegistrationStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
 		name, email, password, err := rsh.GetUserRegistrationData(ctx, userID)
 		if err != nil {
@@ -192,16 +219,17 @@ func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, u
 		if err != nil {
 			return err
 		}
-		rsh.State = regState
+		rsh.LocalState = regState
 		err = rsh.HandleCallbackQuery(ctx, userID, update)
 		if err != nil {
 			return err
 		}
-	case LogInState:
+	case model.LogInState:
 		logInHandler := &LoginStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
 		username, password, err := logInHandler.GetUserLoginData(ctx, userID)
 		if err != nil {
@@ -215,15 +243,16 @@ func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, u
 			return err
 		}
 
-		logInHandler.State = logInState
+		logInHandler.LocalState = logInState
 		return logInHandler.HandleCallbackQuery(ctx, userID, update)
-	case CreateMealState:
+	case model.CreateMealState:
 		createMealHandler := &CreateMealStateHandler{
-			Client:       sh.Client,
-			StateHandler: sh,
-			Bot:          sh.Bot,
+			Client:           sh.Client,
+			StateHandler:     sh,
+			Bot:              sh.Bot,
+			UserStateManager: manager.NewRedisUserStateManager(sh.Client),
 		}
-		// set recipe creation data from redis
+		// set recipe creation data from manager
 		name, time, recipes, err := createMealHandler.GetUserData(ctx, userID)
 		if err != nil {
 			return err
@@ -236,7 +265,7 @@ func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, u
 		if err != nil {
 			return err
 		}
-		createMealHandler.State = createMealStateGlobal
+		createMealHandler.LocalState = createMealStateGlobal
 		log.Printf("Name: %s, Time: %s, Recipes: %v", name, time, recipes)
 		return createMealHandler.HandleCallbackQuery(ctx, userID, update)
 
@@ -244,43 +273,6 @@ func (sh *StateHandler) HandleCallbackQuery(ctx context.Context, userID int64, u
 		//print stack trace
 		debug.Stack()
 		return fmt.Errorf("unknown state")
-	}
-
-	return nil
-}
-
-func HandleCommand(ctx context.Context, update tgbotapi.Update, redisClient *redis.Client, bot *tgbotapi.BotAPI) error {
-	stateHandler := &StateHandler{
-		Client: redisClient,
-		Bot:    bot,
-	}
-	var userID int64
-
-	// check update type
-	if update.Message != nil {
-		userID = update.Message.Chat.ID
-		// Getting user state from redis
-		state, err := stateHandler.getUserState(ctx, userID)
-		if err != nil {
-			return err
-		}
-		log.Println("global state: ", state)
-		//create cancel button
-		if err != nil {
-			return err
-		}
-
-		return stateHandler.HandleMessage(ctx, userID, update.Message.Text, update)
-	} else if update.CallbackQuery != nil {
-		userID = update.CallbackQuery.Message.Chat.ID
-		// Getting user state from redis
-		state, err := stateHandler.getUserState(ctx, userID)
-		if err != nil {
-			return err
-		}
-		log.Println("global state: ", state)
-
-		return stateHandler.HandleCallbackQuery(ctx, userID, update)
 	}
 
 	return nil

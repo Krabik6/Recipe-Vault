@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/Krabik6/meal-schedule/tg-bot/statehandlers"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/redis/go-redis/v9"
@@ -23,17 +24,18 @@ func main() {
 		DB:       0,  // Номер базы данных Redis, если применимо
 	})
 
-	//check redis connection
+	//check manager connection
 	_, err := redisClient.Ping(context.Background()).Result()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error connecting to Redis:", err)
 	}
-
+	//g
 	botToken := "5790667960:AAHC1XU-IWF6aQ1p57fLdCu30_WXgys3vXo"
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		log.Fatal(err)
 	}
+	//
 
 	// Создание контекста
 	ctx := context.Background()
@@ -44,30 +46,42 @@ func main() {
 
 	updates := bot.GetUpdatesChan(u)
 
+	sh := statehandlers.NewStateHandler(redisClient, bot)
+	log.Println("Bot is running...")
+
 	// Обработка входящих сообщений
 	for update := range updates {
 		if update.Message == nil && update.CallbackQuery == nil {
 			continue
 		}
 
-		//log.Println(update.CallbackQuery.Data)
-
-		//update.CallbackQuery.Data
-		// Обработка команд пользователя
-
-		//command := update.Message.Text
-		err := statehandlers.HandleCommand(ctx, update, redisClient, bot)
-		if err != nil {
-			spoilerErrorMessage := "Произошла ошибка: " + err.Error()
-
-			msg := tgbotapi.NewMessage(update.FromChat().ID, spoilerErrorMessage)
-			_, err = bot.Send(msg)
+		if update.Message != nil {
+			// Handle message updates
+			err := sh.HandleMessage(ctx, update.Message.Chat.ID, update.Message.Text, update)
 			if err != nil {
-				log.Println(err)
+				// В случае ошибки отправляем сообщение пользователю и логируем ошибку
+				message := fmt.Sprintf("Произошла ошибка: %s\n Пожалуйста попробуйте ещё раз.", err)
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, message)
+				_, err := bot.Send(msg)
+				if err != nil {
+					log.Println("Error sending message:", err)
+				}
+				log.Println("Error handling message:", err)
 			}
-			continue
+		} else if update.CallbackQuery != nil {
+			// Handle callback query updates
+			err := sh.HandleCallbackQuery(ctx, update.CallbackQuery.Message.Chat.ID, update)
+			if err != nil {
+				// В случае ошибки отправляем сообщение пользователю и логируем ошибку
+				message := fmt.Sprintf("Произошла ошибка: %s\n Пожалуйста попробуйте ещё раз.", err)
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, message)
+				_, err := bot.Send(msg)
+				if err != nil {
+					log.Println("Error sending message:", err)
+				}
+				log.Println("Error handling callback query:", err)
+			}
 		}
 
-		// Вывод текущего состояния
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/Krabik6/meal-schedule/internal/models"
 	"github.com/jmoiron/sqlx"
-	"log"
 	"strings"
+	"time"
 )
 
 type SchedulePostgres struct {
@@ -103,41 +103,79 @@ func (s *SchedulePostgres) CreateMeal(userId int, meal models.Meal) (int, error)
 	return id, tx.Commit()
 
 }
-
-func (s *SchedulePostgres) GetAllSchedule(userId int) ([]models.ScheduleOutput, error) {
+func (s *SchedulePostgres) GetAllSchedule(userID int) ([]models.ScheduleOutput, error) {
 	var output []models.ScheduleOutput
 
-	GetScheduleByDateQuery :=
-		fmt.Sprintf(`SELECT  * from meal m 
-    JOIN mealrecipes mr on m.id = mr."mealId" 
-          WHERE m.user_id = $1;`)
+	query := `
+        SELECT
+            m.id,
+            m.name,
+            m.at_time,
+            r.title,
+            r.description,
+            r.public,
+            r.cost,
+            r."timeToPrepare",
+            r.healthy
+        FROM
+            meal m
+        JOIN
+            mealrecipes mr ON m.id = mr."mealId"
+        JOIN
+            recipes r ON mr."recipeId" = r.id
+        WHERE
+            m.user_id = $1
+    `
 
-	log.Println(GetScheduleByDateQuery)
-	err := s.db.Select(&output, GetScheduleByDateQuery, userId)
+	err := s.db.Select(&output, query, userID)
 	if err != nil {
-		return output, err
+		return nil, err
 	}
 
-	return output, err
+	return output, nil
 }
-func (s *SchedulePostgres) GetScheduleByPeriod(userId int, date string, dayPeriod int) ([]models.ScheduleOutput, error) {
+
+func (s *SchedulePostgres) GetScheduleByPeriod(userID int, date string, dayPeriod int) ([]models.ScheduleOutput, error) {
 	var output []models.ScheduleOutput
-	GetScheduleByDateQuery :=
-		fmt.Sprintf(`SELECT  m.id, m.name, m.at_time, r.title, r.description, r.public, r.cost, r."timeToPrepare", r.healthy from meal m
-    JOIN mealrecipes mr on m.id = mr."mealId" JOIN recipes r on mr."recipeId" = r.id
-        WHERE m.user_id = $1
-          AND m.at_time >= '%s'
-          AND m.at_time <= TIMESTAMP '%s' + INTERVAL '%d days';`,
-			date, date, dayPeriod)
+	query := `
+        SELECT
+            m.id,
+            m.name,
+            m.at_time,
+            r.title,
+            r.description,
+            r.public,
+            r.cost,
+            r."timeToPrepare",
+            r.healthy
+        FROM
+            meal m
+        JOIN
+            mealrecipes mr ON m.id = mr."mealId"
+        JOIN
+            recipes r ON mr."recipeId" = r.id
+        WHERE
+            m.user_id = $1
+            AND m.at_time >= $2
+            AND m.at_time <= $2 + INTERVAL '%d days'
+    `
 
-	log.Println(GetScheduleByDateQuery)
-	err := s.db.Select(&output, GetScheduleByDateQuery, userId)
+	startDate, err := time.Parse("2006-01-02", date)
 	if err != nil {
-		return output, err
+		return nil, err
+	}
+	endDate := startDate.AddDate(0, 0, dayPeriod)
+
+	query = fmt.Sprintf(query, dayPeriod)
+
+	err = s.db.Select(&output, query, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
 	}
 
-	return output, err
+	return output, nil
 }
+
 func (s *SchedulePostgres) UpdateSchedule(userId int, date string, input models.UpdateScheduleInput) error {
 	db := s.db
 

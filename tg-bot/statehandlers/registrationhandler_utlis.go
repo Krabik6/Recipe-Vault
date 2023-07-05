@@ -30,7 +30,7 @@ func (rs *registrationState) UnmarshalBinary(data []byte) error {
 
 // SetUserRegistrationState устанавливает состояние регистрации пользователя в Redis.
 func (rs *RegistrationStateHandler) SetUserRegistrationState(ctx context.Context, userID int64) error {
-	state, err := rs.State.MarshalBinary()
+	state, err := rs.LocalState.MarshalBinary()
 	if err != nil {
 		return err
 	}

@@ -4,26 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/Krabik6/meal-schedule/tg-bot/api"
+	"github.com/Krabik6/meal-schedule/tg-bot/interfaces"
 	"github.com/Krabik6/meal-schedule/tg-bot/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/redis/go-redis/v9"
 	"net/http"
 	"strconv"
 )
-
-// create the same code but for create a recipe
-/*
-type Recipe struct {
-	Id            int     `json:"id,omitempty" db:"id"`
-	Title         string  `json:"title,omitempty" db:"title"`
-	Description   string  `json:"description,omitempty" db:"description"`
-	IsPublic      bool    `json:"public,omitempty" db:"public"`
-	Cost          float64 `json:"cost,omitempty" db:"cost"`
-	TimeToPrepare int64   `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
-	Healthy       int     `json:"healthy,omitempty" db:"healthy"`
-}
-*/
-// CreateRecipeStateHandler handles the state of creating a recipe
 
 type createRecipeState int
 
@@ -40,16 +27,19 @@ const (
 )
 
 type CreateRecipeStateHandler struct {
-	Bot           *tgbotapi.BotAPI
-	StateHandler  *StateHandler
-	State         createRecipeState
-	Client        *redis.Client
-	Title         string
-	Description   string
-	IsPublic      bool
-	Cost          float64
-	TimeToPrepare int64
-	Healthy       int
+	Bot              *tgbotapi.BotAPI
+	StateHandler     *StateHandler
+	State            *model.State
+	LocalState       createRecipeState
+	Client           *redis.Client
+	UserStateManager interfaces.UserStateManager
+	JwtManager       interfaces.JwtManager
+	Title            string
+	Description      string
+	IsPublic         bool
+	Cost             float64
+	TimeToPrepare    int64
+	Healthy          int
 }
 
 // consts for states of creating a recipe
@@ -76,12 +66,12 @@ const (
 // HandleMessage handles the message
 func (crs *CreateRecipeStateHandler) HandleMessage(ctx context.Context, userID int64, update tgbotapi.Update) error {
 	//print current state to console
-	fmt.Printf("current state: %d\n", crs.State)
+	fmt.Printf("current state: %d\n", crs.LocalState)
 	message := update.Message.Text
 	if message == "/cancel" {
 		return crs.handleCancel(ctx, userID)
 	}
-	switch crs.State {
+	switch crs.LocalState {
 	case CreateRecipeTitle:
 		crs.Title = message
 	case CreateRecipeDescription:
@@ -123,7 +113,7 @@ func (crs *CreateRecipeStateHandler) HandleMessage(ctx context.Context, userID i
 			if err != nil {
 				return err
 			}
-			return fmt.Errorf("unknown state: %d", crs.State)
+			return fmt.Errorf("unknown state: %d", crs.LocalState)
 		}
 	}
 
@@ -138,11 +128,11 @@ func (crs *CreateRecipeStateHandler) HandleMessage(ctx context.Context, userID i
 
 // Handle CallbackQuery
 func (crs *CreateRecipeStateHandler) HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error {
-	fmt.Printf("current state: %d\n", crs.State)
+	fmt.Printf("current state: %d\n", crs.LocalState)
 
 	query := update.CallbackQuery
 	data := query.Data
-	switch crs.State {
+	switch crs.LocalState {
 	case CreateRecipeIsPublic:
 		if data == "yes" {
 			crs.IsPublic = true
@@ -174,7 +164,7 @@ func (crs *CreateRecipeStateHandler) HandleCallbackQuery(ctx context.Context, us
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("unknown state: %d", crs.State)
+		return fmt.Errorf("unknown state: %d", crs.LocalState)
 	}
 
 	err := crs.handleState(ctx, userID)
@@ -187,8 +177,8 @@ func (crs *CreateRecipeStateHandler) HandleCallbackQuery(ctx context.Context, us
 
 // handleState handles the state
 func (crs *CreateRecipeStateHandler) handleState(ctx context.Context, userID int64) error {
-	//handle state, save data to redis
-	switch crs.State {
+	//handle state, save data to manager
+	switch crs.LocalState {
 	case NoCreateRecipeState:
 		msg := tgbotapi.NewMessage(userID, "To exit the current process, please press the \"Cancel\" button or enter \"/cancel\".") // Пустое текстовое сообщение
 		msg.ReplyMarkup = crs.StateHandler.createCancelKeyboard()
@@ -236,16 +226,16 @@ func (crs *CreateRecipeStateHandler) handleState(ctx context.Context, userID int
 	//		return err
 	//	}
 	default:
-		return fmt.Errorf("unknown state: %d", crs.State)
+		return fmt.Errorf("unknown state: %d", crs.LocalState)
 	}
 
-	//save data to redis
+	//save data to manager
 	err := crs.SetUserData(ctx, userID)
 	if err != nil {
 		return err
 	}
 
-	//save state to redis
+	//save state to manager
 	err = crs.SetUserState(ctx, userID)
 	if err != nil {
 		return err
@@ -262,7 +252,7 @@ func (crs *CreateRecipeStateHandler) handleNoCreateRecipeState(userID int64) err
 	if err != nil {
 		return err
 	}
-	crs.State = CreateRecipeTitle
+	crs.LocalState = CreateRecipeTitle
 
 	return nil
 }
@@ -276,7 +266,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeTitle(userID int64) error
 	if err != nil {
 		return err
 	}
-	crs.State = CreateRecipeDescription
+	crs.LocalState = CreateRecipeDescription
 
 	return nil
 }
@@ -294,7 +284,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeDescription(userID int64)
 	if err != nil {
 		return err
 	}
-	crs.State = CreateRecipeIsPublic
+	crs.LocalState = CreateRecipeIsPublic
 
 	return nil
 }
@@ -308,7 +298,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeIsPublic(userID int64) er
 	if err != nil {
 		return err
 	}
-	crs.State = CreateRecipeCost
+	crs.LocalState = CreateRecipeCost
 
 	return nil
 }
@@ -322,7 +312,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeCost(userID int64) error 
 	if err != nil {
 		return err
 	}
-	crs.State = CreateRecipeTimeToPrepare
+	crs.LocalState = CreateRecipeTimeToPrepare
 
 	return nil
 }
@@ -342,7 +332,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeTimeToPrepare(userID int6
 		return err
 	}
 
-	crs.State = CreateRecipeHealthy
+	crs.LocalState = CreateRecipeHealthy
 
 	return nil
 }
@@ -363,7 +353,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeHealthy(userID int64) err
 		return err
 	}
 
-	crs.State = CreateRecipeConfirmation
+	crs.LocalState = CreateRecipeConfirmation
 
 	return nil
 }
@@ -383,14 +373,14 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmYes(ctx context.Co
 	}
 	client := &http.Client{}
 	//gwt jwt token
-	token, err := crs.StateHandler.GetUserJWTToken(ctx, userID)
+	token, err := crs.JwtManager.GetUserJWTToken(ctx, userID)
 
 	recipeId, err := api.CreateRecipe(client, recipe, token)
 	if err != nil {
 		return err
 	}
 
-	crs.State = NoCreateRecipeState
+	crs.LocalState = NoCreateRecipeState
 	err = crs.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
@@ -399,7 +389,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmYes(ctx context.Co
 	if err != nil {
 		return err
 	}
-	err = crs.StateHandler.DeleteUserState(ctx, userID)
+	err = crs.UserStateManager.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -418,7 +408,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmYes(ctx context.Co
 func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmNo(ctx context.Context, userID int64) error {
 	// set the state to NoCreateRecipeState and send a message to the user that the recipe is not created
 
-	crs.State = NoCreateRecipeState
+	crs.LocalState = NoCreateRecipeState
 	err := crs.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
@@ -427,7 +417,7 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmNo(ctx context.Con
 	if err != nil {
 		return err
 	}
-	err = crs.StateHandler.DeleteUserState(ctx, userID)
+	err = crs.UserStateManager.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -441,11 +431,11 @@ func (crs *CreateRecipeStateHandler) handleCreateRecipeConfirmNo(ctx context.Con
 	return nil
 }
 
-// handleCancel that cancel the creation of a recipe: delete the state from redis and send a message to the user
+// handleCancel that cancel the creation of a recipe: delete the state from manager and send a message to the user
 func (crs *CreateRecipeStateHandler) handleCancel(ctx context.Context, userID int64) error {
-	// local state to no state and delete the state from redis, send a message to the user
+	// local state to no state and delete the state from manager, send a message to the user
 
-	crs.State = NoCreateRecipeState
+	crs.LocalState = NoCreateRecipeState
 	err := crs.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
@@ -454,7 +444,7 @@ func (crs *CreateRecipeStateHandler) handleCancel(ctx context.Context, userID in
 	if err != nil {
 		return err
 	}
-	err = crs.StateHandler.DeleteUserState(ctx, userID)
+	err = crs.UserStateManager.DeleteUserState(ctx, userID)
 	if err != nil {
 		return err
 	}

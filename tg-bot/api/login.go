@@ -27,16 +27,16 @@ func Login(client *http.Client, user model.LoginCredentials) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", fmt.Errorf("неверный логин или пароль")
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return "", err
 		}
 		return "", fmt.Errorf("код состояния %d. \nответ: %v", resp.StatusCode, string(body))
-	}
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return "", fmt.Errorf("неверный логин или пароль")
 	}
 
 	var authResponse model.AuthResponse

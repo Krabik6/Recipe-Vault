@@ -24,8 +24,10 @@ func GetMealPlans(client *http.Client, token string) ([]models.ScheduleOutput, e
 	}
 	defer resp.Body.Close()
 
+	log.Println(resp.StatusCode)
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
+		log.Println(string(body))
 		if err != nil {
 			return nil, err
 		}
