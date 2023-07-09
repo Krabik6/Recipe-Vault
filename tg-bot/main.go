@@ -3,17 +3,23 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Krabik6/meal-schedule/tg-bot/api"
+	"github.com/Krabik6/meal-schedule/tg-bot/bot_buttons"
+	"github.com/Krabik6/meal-schedule/tg-bot/manager"
 	"github.com/Krabik6/meal-schedule/tg-bot/statehandlers"
+	"github.com/Krabik6/meal-schedule/tg-bot/states/expectation"
+	"github.com/Krabik6/meal-schedule/tg-bot/states/login"
+	"github.com/Krabik6/meal-schedule/tg-bot/states/meals"
+	"github.com/Krabik6/meal-schedule/tg-bot/states/recipes"
+	"github.com/Krabik6/meal-schedule/tg-bot/states/registration"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/redis/go-redis/v9"
 	"log"
+	"time"
 )
 
 const (
-	// Команда для начала регистрации
-	StartRegistrationCommand = "/registration"
-	// Команда для отмены регистрации
-	CancelRegistrationCommand = "/cancel"
+	expiration = 7 * 24 * time.Hour
 )
 
 func main() {
@@ -35,18 +41,30 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//
-
-	// Создание контекста
 	ctx := context.Background()
-
 	// Получение обновлений от Telegram API
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
 
-	sh := statehandlers.NewStateHandler(redisClient, bot)
+	jwtManager := manager.NewJwtManager(redisClient, expiration)
+	botMenu := bot_buttons.NewBotMenu(bot, jwtManager)
+	botMenu.CreateMainMenu(ctx, 0)
+	apis := api.NewApi()
+
+	userStateManager := manager.NewUserStateManager(redisClient)
+	if botMenu == nil {
+		log.Fatal("botMenu is nil")
+	}
+
+	recipesService := recipes.NewRecipesService(bot, redisClient, userStateManager, jwtManager, botMenu, apis)
+	mealServices := meals.NewMealsService(bot, userStateManager, jwtManager, redisClient, botMenu, recipesService, apis)
+	loginService := login.NewLoginService(redisClient, bot, jwtManager, userStateManager, botMenu, apis)
+	registerService := registration.NewRegistrationService(bot, redisClient, userStateManager, botMenu, apis)
+	noStateService := expectation.NewNoStateHandler(bot, userStateManager, jwtManager, botMenu, mealServices, recipesService)
+
+	sh := statehandlers.NewStateHandler(redisClient, bot, userStateManager, recipesService, mealServices, loginService, registerService, noStateService)
 	log.Println("Bot is running...")
 
 	// Обработка входящих сообщений
@@ -56,6 +74,7 @@ func main() {
 		}
 
 		if update.Message != nil {
+
 			// Handle message updates
 			err := sh.HandleMessage(ctx, update.Message.Chat.ID, update.Message.Text, update)
 			if err != nil {

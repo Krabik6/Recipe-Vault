@@ -12,11 +12,8 @@ type UserStateManager struct {
 	Client *redis.Client
 }
 
-// NewRedisUserStateManager - constructor for UserStateManager
-func NewRedisUserStateManager(client *redis.Client) *UserStateManager {
-	return &UserStateManager{
-		Client: client,
-	}
+func NewUserStateManager(client *redis.Client) *UserStateManager {
+	return &UserStateManager{Client: client}
 }
 
 func (r *UserStateManager) SetUserState(ctx context.Context, userID int64, state model.State) error {

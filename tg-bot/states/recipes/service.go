@@ -1,34 +1,45 @@
 package recipes
 
-// struct for recipes methods
+import (
+	"context"
+	"github.com/Krabik6/meal-schedule/tg-bot/api"
+	"github.com/Krabik6/meal-schedule/tg-bot/interfaces"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/redis/go-redis/v9"
+)
 
-/*
-interface for
-Methods on (*CreateRecipeStateHandler):
-SetUserState(ctx context.Context, userID int64) error
-DeleteUserState(ctx context.Context, userID int64) error
-GetUserState(ctx context.Context, userID int64) (createRecipeState, error)
-SetUserData(ctx context.Context, userID int64) error
-DeleteUserData(ctx context.Context, userID int64) error
-GetUserData(ctx context.Context, userID int64) (title string, description string, isPublic bool, cost float64, timeToPrepare int64, healthy int, err error)
-HandleMessage(ctx context.Context, userID int64, update tgbotapi.Update) error
-HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error
-handleState(ctx context.Context, userID int64) error
-handleNoCreateRecipeState(userID int64) error
-handleCreateRecipeTitle(userID int64) error
-handleCreateRecipeDescription(userID int64) error
-handleCreateRecipeIsPublic(userID int64) error
-handleCreateRecipeCost(userID int64) error
-handleCreateRecipeTimeToPrepare(userID int64) error
-handleCreateRecipeHealthy(userID int64) error
-handleCreateRecipeConfirmYes(ctx context.Context, userID int64) error
-handleCreateRecipeConfirmNo(ctx context.Context, userID int64) error
-handleCancel(ctx context.Context, userID int64) error
-
-*/
-
-type CreateRecipeStateHandler interface {
+type CreateRecipe interface {
+	SetUserState(ctx context.Context, userID int64) error
+	DeleteUserState(ctx context.Context, userID int64) error
+	GetUserState(ctx context.Context, userID int64) (createRecipeState, error)
+	SetUserData(ctx context.Context, userID int64) error
+	DeleteUserData(ctx context.Context, userID int64) error
+	GetUserData(ctx context.Context, userID int64) (title string, description string, isPublic bool, cost float64, timeToPrepare int64, healthy int, err error)
+	HandleMessage(ctx context.Context, userID int64, update tgbotapi.Update) error
+	HandleCallbackQuery(ctx context.Context, userID int64, update tgbotapi.Update) error
+	BuildUserData(title string, description string, isPublic bool, cost float64, timeToPrepare int64, healthy int)
 }
 
-type Service struct {
+type List interface {
+	RecipesList(ctx context.Context, userID int64) error
+}
+
+type RecipesService struct {
+	CreateRecipe
+	List
+}
+
+func NewRecipesService(
+	bot *tgbotapi.BotAPI,
+	client *redis.Client,
+	userManager interfaces.UserStateManager,
+	jwtManager interfaces.JwtManager,
+	botMenu interfaces.BotMenu,
+	api *api.Api,
+) *RecipesService {
+
+	return &RecipesService{
+		CreateRecipe: NewCreateRecipeStateHandler(bot, client, userManager, jwtManager, botMenu, api),
+		List:         NewListService(jwtManager, bot, api),
+	}
 }

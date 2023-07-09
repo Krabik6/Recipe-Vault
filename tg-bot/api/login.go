@@ -10,7 +10,7 @@ import (
 )
 
 // Login that takes 4 arguments: bot, update, client, user, and returns error. It is used to log in the user using the API.
-func Login(client *http.Client, user model.LoginCredentials) (string, error) {
+func (a *Api) Login(user model.LoginCredentials) (string, error) {
 	loginCredentials := model.LoginCredentials{
 		Username: user.Username,
 		Password: user.Password,
@@ -21,7 +21,7 @@ func Login(client *http.Client, user model.LoginCredentials) (string, error) {
 		return "", err
 	}
 
-	resp, err := client.Post("http://localhost:8000/auth/sign-in", "application/json", strings.NewReader(string(requestBody)))
+	resp, err := a.Client.Post("http://localhost:8000/auth/sign-in", "application/json", strings.NewReader(string(requestBody)))
 	if err != nil {
 		return "", err
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Krabik6/meal-schedule/tg-bot/model"
 	"github.com/redis/go-redis/v9"
+	"log"
 	"time"
 )
 
@@ -13,11 +14,16 @@ type JwtManager struct {
 	Expiration time.Duration //expiration
 }
 
+func NewJwtManager(client *redis.Client, expiration time.Duration) *JwtManager {
+	return &JwtManager{Client: client, Expiration: expiration}
+}
+
 // SetUserJWTToken sets the JWT token for a user in Redis.
 func (jm *JwtManager) SetUserJWTToken(ctx context.Context, userID int64, token string) error {
 	key := fmt.Sprintf(model.UserJWTTokenKey, userID)
-	exp := jm.Expiration
 
+	exp := jm.Expiration
+	log.Println(exp)
 	err := jm.Client.Set(ctx, key, token, exp).Err()
 	if err != nil {
 		return err

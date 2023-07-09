@@ -11,7 +11,7 @@ import (
 
 // CreateMealPlan function takes the client, meal plan, and token as arguments and returns an error.
 // It is used to create a meal plan for a specific date using the API.
-func CreateMealPlan(client *http.Client, mealPlan models.Meal, token string) error {
+func (a *Api) CreateMealPlan(mealPlan models.Meal, token string) error {
 	requestBody, err := json.Marshal(mealPlan)
 	if err != nil {
 		return err
@@ -25,7 +25,7 @@ func CreateMealPlan(client *http.Client, mealPlan models.Meal, token string) err
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := client.Do(req)
+	resp, err := a.Client.Do(req)
 	if err != nil {
 		return err
 	}

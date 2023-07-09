@@ -10,9 +10,12 @@ import (
 
 type BotMenu struct {
 	Bot        *tgbotapi.BotAPI
-	JwtManager manager.JwtManager
+	JwtManager *manager.JwtManager
 }
 
+func NewBotMenu(bot *tgbotapi.BotAPI, jwtManager *manager.JwtManager) *BotMenu {
+	return &BotMenu{Bot: bot, JwtManager: jwtManager}
+}
 func (bm *BotMenu) CreateMainMenu(ctx context.Context, userID int64) tgbotapi.ReplyKeyboardMarkup {
 	loggedIn, err := bm.JwtManager.CheckLoggedIn(ctx, userID)
 	log.Println("current login status:", loggedIn)

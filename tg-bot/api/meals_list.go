@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-func GetMealPlans(client *http.Client, token string) ([]models.ScheduleOutput, error) {
+func (a *Api) GetMealPlans(token string) ([]models.ScheduleOutput, error) {
 	req, err := http.NewRequest("GET", "http://localhost:8000/api/schedule/all", nil)
 	if err != nil {
 		return nil, err
@@ -18,7 +18,7 @@ func GetMealPlans(client *http.Client, token string) ([]models.ScheduleOutput, e
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := client.Do(req)
+	resp, err := a.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}

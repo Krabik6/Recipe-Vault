@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-func GetRecipes(client *http.Client, token string) ([]models.Recipe, error) {
+func (a *Api) GetRecipes(token string) ([]models.Recipe, error) {
 	req, err := http.NewRequest("GET", "http://localhost:8000/api/recipes/", nil)
 	if err != nil {
 		return nil, err
@@ -18,7 +18,7 @@ func GetRecipes(client *http.Client, token string) ([]models.Recipe, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := client.Do(req)
+	resp, err := a.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}

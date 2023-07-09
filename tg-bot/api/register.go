@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Krabik6/meal-schedule/tg-bot/model"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io"
 	"net/http"
 	"strings"
 )
 
-func SignUp(bot *tgbotapi.BotAPI, update tgbotapi.Update, client *http.Client, user model.SignUpCredentials) error {
+func (a *Api) SignUp(user model.SignUpCredentials) error {
 	signUpCredentials := model.SignUpCredentials{
 		Username: user.Username,
 		Password: user.Password,
@@ -21,8 +20,8 @@ func SignUp(bot *tgbotapi.BotAPI, update tgbotapi.Update, client *http.Client, u
 	if err != nil {
 		return err
 	}
-
-	resp, err := client.Post("http://localhost:8000/auth/sign-up", "application/json", strings.NewReader(string(requestBody)))
+	//todo replace hardcoded url to env variable
+	resp, err := a.Client.Post("http://localhost:8000/auth/sign-up", "application/json", strings.NewReader(string(requestBody)))
 	if err != nil {
 		return err
 	}

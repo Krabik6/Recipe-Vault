@@ -13,7 +13,7 @@ import (
 // It is used to create a recipe using the API.
 // CreateRecipe function takes the client, recipe, and token as arguments and returns an error.
 // It is used to create a recipe using the API.
-func CreateRecipe(client *http.Client, recipe model.CreateRecipeInput, token string) (int64, error) {
+func (a *Api) CreateRecipe(recipe model.CreateRecipeInput, token string) (int64, error) {
 	requestBody, err := json.Marshal(recipe)
 	if err != nil {
 		return 0, err
@@ -27,7 +27,7 @@ func CreateRecipe(client *http.Client, recipe model.CreateRecipeInput, token str
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := client.Do(req)
+	resp, err := a.Client.Do(req)
 	if err != nil {
 		return 0, err
 	}

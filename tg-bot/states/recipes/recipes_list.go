@@ -1,26 +1,44 @@
 package recipes
 
 import (
+	"context"
 	"fmt"
 	"github.com/Krabik6/meal-schedule/tg-bot/api"
+	"github.com/Krabik6/meal-schedule/tg-bot/interfaces"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"net/http"
 	"strconv"
 )
 
+type ListService struct {
+	JwtManager interfaces.JwtManager
+	Bot        *tgbotapi.BotAPI
+	Api        *api.Api
+}
+
+func NewListService(
+	jwtManager interfaces.JwtManager,
+	bot *tgbotapi.BotAPI,
+	api *api.Api,
+) *ListService {
+	return &ListService{
+		JwtManager: jwtManager,
+		Bot:        bot,
+		Api:        api,
+	}
+}
+
 // RecipesList функция для обработки команды /recipes_list в состоянии без состояния
-func (sh *StateHandler) RecipesList(ctx context.Context, userID int64) error {
-	client := &http.Client{}
-	token, err := sh.GetUserJWTToken(ctx, userID)
+func (ls *ListService) RecipesList(ctx context.Context, userID int64) error {
+	token, err := ls.JwtManager.GetUserJWTToken(ctx, userID)
 	if err != nil {
 		return err
 	}
-	recipes, err := api.GetRecipes(client, token)
+	recipes, err := ls.Api.GetRecipes(token)
 	if err != nil {
 		return err
 	}
 
-	//msg := tgbotapi.NewMessage(userID, "Recipes list:")
+	//msg := tgbotapi.NewMessage(userID, "RecipesService list:")
 	for _, recipe := range recipes {
 		msg := tgbotapi.NewMessage(userID, "")
 		msg.Text += fmt.Sprintf("\n*Title*: %s", recipe.Title)
@@ -43,7 +61,7 @@ func (sh *StateHandler) RecipesList(ctx context.Context, userID int64) error {
 		msg.ParseMode = "Markdown"
 
 		// Отправляем сообщение с кнопкой
-		_, err := sh.Bot.Send(msg)
+		_, err := ls.Bot.Send(msg)
 		if err != nil {
 			return err
 		}
