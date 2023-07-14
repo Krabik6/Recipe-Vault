@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"github.com/Krabik6/meal-schedule/internal/models"
 	"github.com/Krabik6/meal-schedule/internal/repository"
+	"mime/multipart"
 )
 
 //go:generate mockgen -source=service.go -destination=mocks/mock.go
@@ -14,10 +16,10 @@ type Authorization interface {
 }
 
 type Recipes interface {
-	CreateRecipe(userId int, recipe models.Recipe) (int, error)
+	CreateRecipe(userId int, recipe models.Recipe, imageFiles []*multipart.FileHeader) (int, error)
 	GetRecipeById(userId, id int) (models.Recipe, error)
 	GetAllRecipes(userId int) ([]models.Recipe, error)
-	UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error
+	UpdateRecipe(userId, id int, input models.UpdateRecipeInput, imageFiles []*multipart.FileHeader) error
 	DeleteRecipe(userId, id int) error
 	GetPublicRecipes() ([]models.Recipe, error)
 	GetFilteredRecipes(input models.RecipesFilter) ([]models.Recipe, error)
@@ -25,7 +27,6 @@ type Recipes interface {
 }
 
 type Schedule interface {
-	FillSchedule(userId int, meal models.Meal) (int, error)
 	GetAllSchedule(userId int) ([]models.ScheduleOutput, error)
 	GetScheduleByPeriod(userId int, date string, dayPeriod int) ([]models.ScheduleOutput, error)
 	UpdateSchedule(userId int, date string, input models.UpdateScheduleInput) error
@@ -42,6 +43,10 @@ type Ingredients interface {
 	DeleteIngredient(userId, id int) error
 }
 
+type ImageUploader interface {
+	UploadImage(ctx context.Context, imageFile *multipart.FileHeader) (string, error)
+}
+
 type Service struct {
 	Authorization
 	Recipes
@@ -51,10 +56,10 @@ type Service struct {
 
 //repos *Repository.Repository
 
-func NewService(repos *repository.Repository) *Service {
+func NewService(repos *repository.Repository, uploader ImageUploader) *Service {
 	return &Service{
 		Authorization: NewAuthService(repos.Authorization),
-		Recipes:       NewRecipesService(repos.Recipes),
+		Recipes:       NewRecipesService(repos.Recipes, uploader),
 		Schedule:      NewScheduleService(repos.Schedule),
 		Ingredients:   NewIngredientsService(repos.Ingredient),
 	}

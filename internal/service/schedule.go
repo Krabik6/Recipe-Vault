@@ -13,10 +13,6 @@ func NewScheduleService(repo repository.Schedule) *ScheduleService {
 	return &ScheduleService{repo: repo}
 }
 
-func (s *ScheduleService) FillSchedule(userId int, meal models.Meal) (int, error) {
-	return s.repo.FillSchedule(userId, meal)
-}
-
 func (s *ScheduleService) GetAllSchedule(userId int) ([]models.ScheduleOutput, error) {
 	return s.repo.GetAllSchedule(userId)
 }

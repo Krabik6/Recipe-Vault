@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/Krabik6/meal-schedule/internal/apiserver"
+	"github.com/Krabik6/meal-schedule/internal/cloudinaryutil"
 	"github.com/Krabik6/meal-schedule/internal/configs"
 	"github.com/Krabik6/meal-schedule/internal/handler"
 	"github.com/Krabik6/meal-schedule/internal/repository"
@@ -36,9 +37,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("db %e", err)
 	}
-
+	cloudinary := cloudinaryutil.NewCloudinaryClient(cfg.Cloudinary.CloudName, cfg.Cloudinary.APIKey, cfg.Cloudinary.APISecret)
 	repos := repository.NewRepository(db)
-	services := service.NewService(repos)
+	services := service.NewService(repos, cloudinary)
 	handlers := handler.NewHandler(services)
 	server := new(apiserver.Server)
 

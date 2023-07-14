@@ -1,23 +1,25 @@
 package models
 
 type Recipe struct {
-	Id            int     `json:"id,omitempty" db:"id"`
-	Title         string  `json:"title,omitempty" db:"title"`
-	Description   string  `json:"description,omitempty" db:"description"`
-	IsPublic      bool    `json:"public,omitempty" db:"public"`
-	Cost          float64 `json:"cost,omitempty" db:"cost"`
-	TimeToPrepare int64   `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
-	Healthy       int     `json:"healthy,omitempty" db:"healthy"`
+	Id            int      `json:"id,omitempty" db:"id"`
+	Title         string   `json:"title,omitempty" db:"title"`
+	Description   string   `json:"description,omitempty" db:"description"`
+	IsPublic      bool     `json:"public,omitempty" db:"public"`
+	Cost          float64  `json:"cost,omitempty" db:"cost"`
+	TimeToPrepare int64    `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
+	Healthy       int64    `json:"healthy,omitempty" db:"healthy"`
+	ImageURLs     []string `json:"imageURLs,omitempty" db:"imageURLs"`
 }
 
 type UpdateRecipeInput struct {
-	Id            *int     `json:"id,omitempty" db:"id"`
-	Title         *string  `json:"title"`
-	Description   *string  `json:"description"`
-	IsPublic      *bool    `json:"isPublic" db:"public"`
-	Cost          *float64 `json:"cost,omitempty"`
-	TimeToPrepare *int     `json:"timeToPrepare,omitempty"`
-	Healthy       *int     `json:"healthy,omitempty"`
+	Id            *int      `json:"id,omitempty" db:"id"`
+	Title         *string   `json:"title"`
+	Description   *string   `json:"description"`
+	IsPublic      *bool     `json:"isPublic" db:"public"`
+	Cost          *float64  `json:"cost,omitempty"`
+	TimeToPrepare *int      `json:"timeToPrepare,omitempty"`
+	Healthy       *int      `json:"healthy,omitempty"`
+	ImageURLs     *[]string `json:"imageURLs,omitempty"`
 }
 
 // date_of
@@ -34,10 +36,9 @@ type Schedule struct {
 }
 
 type UpdateScheduleInput struct {
-	Date        *string `json:"date,omitempty"`
-	BreakfastId *int    `json:"breakfastId,omitempty"`
-	LunchId     *int    `json:"lunchId,omitempty"`
-	DinnerId    *int    `json:"dinnerId,omitempty"`
+	Name    *string `json:"name,omitempty"`
+	AtTime  *string `json:"at_time,omitempty"`
+	Recipes *[]int  `json:"recipes,omitempty"`
 }
 
 type User struct {

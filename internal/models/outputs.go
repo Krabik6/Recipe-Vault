@@ -1,15 +1,16 @@
 package models
 
 type ScheduleOutput struct {
-	Id            int     `json:"id,omitempty" db:"id"`
-	Name          string  `json:"name,omitempty" db:"name"`
-	AtTime        string  `json:"at_time,omitempty" db:"at_time"`
-	Title         string  `json:"title,omitempty" db:"title"`
-	Description   string  `json:"description,omitempty" db:"description"`
-	Public        bool    `json:"public,omitempty" db:"public"`
-	Cost          float64 `json:"cost,omitempty" db:"cost"`
-	TimeToPrepare int     `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
-	Healthy       int     `json:"healthy,omitempty" db:"healthy"`
+	Id            int      `json:"id,omitempty" db:"id"`
+	Name          string   `json:"name,omitempty" db:"name"`
+	AtTime        string   `json:"at_time,omitempty" db:"at_time"`
+	Title         string   `json:"title,omitempty" db:"title"`
+	Description   string   `json:"description,omitempty" db:"description"`
+	Public        bool     `json:"public,omitempty" db:"public"`
+	Cost          float64  `json:"cost,omitempty" db:"cost"`
+	TimeToPrepare int      `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
+	Healthy       int      `json:"healthy,omitempty" db:"healthy"`
+	ImageURLs     []string `json:"imageURLs,omitempty" db:"imageURLs"`
 }
 
 /*

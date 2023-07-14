@@ -1,11 +1,12 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Krabik6/meal-schedule/internal/models"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
-	"log"
 	"strings"
 )
 
@@ -16,17 +17,16 @@ type RecipesPostgres struct {
 func NewRecipesPostgres(db *sqlx.DB) *RecipesPostgres {
 	return &RecipesPostgres{db: db}
 }
-
 func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) (int, error) {
 	db := r.db
 
 	addRecipeQuery := fmt.Sprintf(`INSERT INTO %s 
-		(title, description, user_id, public, "cost", "timeToPrepare", "healthy")
-		values ($1, $2, $3, $4, $5, $6, $7) 
+		(title, description, user_id, public, "cost", "timeToPrepare", "healthy", "imageURLs")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
 		RETURNING id`,
 		recipeTable)
 
-	row := db.QueryRow(addRecipeQuery, recipe.Title, recipe.Description, userId, recipe.IsPublic, recipe.Cost, recipe.TimeToPrepare, recipe.Healthy)
+	row := db.QueryRow(addRecipeQuery, recipe.Title, recipe.Description, userId, recipe.IsPublic, recipe.Cost, recipe.TimeToPrepare, recipe.Healthy, pq.Array(recipe.ImageURLs))
 
 	var id int
 	if err := row.Scan(&id); err != nil {
@@ -40,22 +40,40 @@ func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
 	db := r.db
 
 	output := models.Recipe{}
-	getRecipeByIdQuery := fmt.Sprintf(`SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy" FROM %s as rt WHERE rt."user_id" = $1 and rt.id=$2`, recipeTable)
-	err := db.Get(&output, getRecipeByIdQuery, userId, id)
+	getRecipeByIdQuery := fmt.Sprintf(`
+		SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs"
+		FROM %s AS rt
+		WHERE rt."user_id" = $1 AND rt.id = $2`, recipeTable)
+
+	row := db.QueryRowx(getRecipeByIdQuery, userId, id)
+	if err := row.Err(); err != nil {
+		return output, err
+	}
+
+	err := row.Scan(
+		&output.Id,
+		&output.Title,
+		&output.Description,
+		&output.IsPublic,
+		&output.Cost,
+		&output.TimeToPrepare,
+		&output.Healthy,
+		pq.Array(&output.ImageURLs),
+	)
 	if err != nil {
 		return output, err
 	}
-	//todo
-	return output, err
-}
 
+	return output, nil
+}
 func (r *RecipesPostgres) GetFilteredRecipes(input models.RecipesFilter) ([]models.Recipe, error) {
 	db := r.db
+
+	var output []models.Recipe
+
 	setValues := make([]string, 0)
 	args := make([]interface{}, 0)
 	argId := 1
-
-	var output []models.Recipe
 
 	if input.CostMoreThan != nil {
 		setValues = append(setValues, fmt.Sprintf(`"cost" > $%d`, argId))
@@ -95,20 +113,47 @@ func (r *RecipesPostgres) GetFilteredRecipes(input models.RecipesFilter) ([]mode
 
 	setQuery := strings.Join(setValues, " and ")
 	if len(setQuery) > 0 {
-		setQuery = "and " + setQuery
+		setQuery = "AND " + setQuery
 	}
-	log.Println(setQuery, 100)
-	log.Println(args...)
 
-	query := fmt.Sprintf(`SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy" FROM  %s as rt  WHERE rt.public=true %s`, recipeTable, setQuery)
-	args = append(args)
+	query := fmt.Sprintf(`
+		SELECT
+			rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs"
+		FROM
+			%s AS rt
+		WHERE
+			rt.public = true %s
+	`, recipeTable, setQuery)
 
-	err := db.Select(&output, query, args...)
+	rows, err := db.Queryx(query, args...)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	return output, err
+	for rows.Next() {
+		var recipe models.Recipe
+		err := rows.Scan(
+			&recipe.Id,
+			&recipe.Title,
+			&recipe.Description,
+			&recipe.IsPublic,
+			&recipe.Cost,
+			&recipe.TimeToPrepare,
+			&recipe.Healthy,
+			pq.Array(&recipe.ImageURLs),
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, recipe)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
 // func GetFilteredUserRecipes
@@ -160,50 +205,141 @@ func (r *RecipesPostgres) GetFilteredUserRecipes(userId int, input models.Recipe
 	if len(setQuery) > 0 {
 		setQuery = "and " + setQuery
 	}
-	log.Println(setQuery)
-	log.Println(args...)
 
-	query := fmt.Sprintf(`SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy" FROM  %s as rt  WHERE rt.public=true %s and rt."user_id"=%d`, recipeTable, setQuery, userId)
-	args = append(args)
+	query := fmt.Sprintf(`
+		SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs"
+		FROM %s AS rt
+		WHERE rt."public" = true AND rt."user_id" = $%d %s`, recipeTable, argId, setQuery)
 
-	err := db.Select(&output, query, args...)
+	args = append(args, userId)
+
+	rows, err := db.Queryx(query, args...)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	return output, err
+	for rows.Next() {
+		var recipe models.Recipe
+		err := rows.Scan(
+			&recipe.Id,
+			&recipe.Title,
+			&recipe.Description,
+			&recipe.IsPublic,
+			&recipe.Cost,
+			&recipe.TimeToPrepare,
+			&recipe.Healthy,
+			pq.Array(&recipe.ImageURLs),
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, recipe)
+	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
 func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 	db := r.db
 
 	var output []models.Recipe
-	getAllRecipeQuery := fmt.Sprintf(`SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy" FROM  %s as rt  WHERE rt."user_id" = $1`, recipeTable)
-	err := db.Select(&output, getAllRecipeQuery, userId)
+	getAllRecipeQuery := fmt.Sprintf(`
+		SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs"
+		FROM %s AS rt
+		WHERE rt."user_id" = $1`, recipeTable)
+
+	rows, err := db.Queryx(getAllRecipeQuery, userId)
 	if err != nil {
-		return output, err
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var recipe models.Recipe
+		err := rows.Scan(
+			&recipe.Id,
+			&recipe.Title,
+			&recipe.Description,
+			&recipe.IsPublic,
+			&recipe.Cost,
+			&recipe.TimeToPrepare,
+			&recipe.Healthy,
+			pq.Array(&recipe.ImageURLs),
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, recipe)
 	}
 
-	return output, err
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
 func (r *RecipesPostgres) GetPublicRecipes() ([]models.Recipe, error) {
 	db := r.db
 
 	var output []models.Recipe
-	getAllExistRecipeQuery := fmt.Sprintf(`SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy" FROM %s as rt WHERE rt.public=true`, recipeTable)
-	err := db.Select(&output, getAllExistRecipeQuery)
+	getAllExistRecipeQuery := fmt.Sprintf(`
+		SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs"
+		FROM %s AS rt
+		WHERE rt.public=true`, recipeTable)
+
+	rows, err := db.Queryx(getAllExistRecipeQuery)
 	if err != nil {
-		return output, err
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var recipe models.Recipe
+		err := rows.Scan(
+			&recipe.Id,
+			&recipe.Title,
+			&recipe.Description,
+			&recipe.IsPublic,
+			&recipe.Cost,
+			&recipe.TimeToPrepare,
+			&recipe.Healthy,
+			pq.Array(&recipe.ImageURLs),
+		)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, recipe)
 	}
 
-	return output, err
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
 func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error {
 	db := r.db
 
+	// Check if the recipe belongs to the user
+	recipeExistsQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE id = $1 AND user_id = $2`, recipeTable)
+	var count int
+	err := db.Get(&count, recipeExistsQuery, id, userId)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		// Recipe does not exist or does not belong to the user
+		return errors.New("recipe not found or not owned by the user")
+	}
+
+	// Rest of the code for updating the recipe
 	setValues := make([]string, 0)
 	args := make([]interface{}, 0)
 	argId := 1
@@ -244,13 +380,19 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 		argId++
 	}
 
+	if input.ImageURLs != nil {
+		setValues = append(setValues, fmt.Sprintf(`"imageURLs"=$%d`, argId))
+		args = append(args, pq.Array(*input.ImageURLs))
+		argId++
+	}
+
 	setQuery := strings.Join(setValues, ", ")
 
 	query := fmt.Sprintf(`UPDATE %s SET %s WHERE "id"=%d AND "user_id"=%d`, recipeTable, setQuery, id, userId)
 	fmt.Println(query)
 	args = append(args)
 
-	_, err := db.Exec(query, args...)
+	_, err = db.Exec(query, args...)
 
 	return err
 }

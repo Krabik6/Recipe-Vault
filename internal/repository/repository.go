@@ -22,7 +22,6 @@ type Recipes interface {
 }
 
 type Schedule interface {
-	FillSchedule(userId int, meal models.Meal) (int, error)
 	GetAllSchedule(userId int) ([]models.ScheduleOutput, error)
 	GetScheduleByPeriod(userId int, date string, dayPeriod int) ([]models.ScheduleOutput, error)
 	UpdateSchedule(userId int, date string, input models.UpdateScheduleInput) error

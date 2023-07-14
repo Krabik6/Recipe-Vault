@@ -28,6 +28,11 @@ type Config struct {
 		DBName   string `yaml:"DBName"`
 		SSLMode  string `yaml:"SSLMode"`
 	} `yaml:"db"`
+	Cloudinary struct {
+		CloudName string `yaml:"cloud_name"`
+		APIKey    string `yaml:"api_key"`
+		APISecret string `yaml:"api_secret"`
+	} `yaml:"cloudinary"`
 }
 
 func (cfg *Config) initENV() error {

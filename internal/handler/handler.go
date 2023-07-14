@@ -47,8 +47,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		}
 		schedule := api.Group("/schedule")
 		{
-			schedule.POST("/", h.fillSchedule)
-			schedule.POST("/meal", h.createMeal)
+			schedule.POST("/", h.createMeal)
 			schedule.GET("/all", h.getAllSchedule)
 			schedule.GET("/", h.getScheduleByPeriod)
 			schedule.PUT("/", h.updateSchedule)

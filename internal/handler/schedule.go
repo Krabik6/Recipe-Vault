@@ -7,28 +7,6 @@ import (
 	"strconv"
 )
 
-func (h *Handler) fillSchedule(c *gin.Context) {
-	userId, err := getUserId(c)
-	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	var input models.Meal
-	if err := c.BindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	id, err := h.services.Schedule.FillSchedule(userId, input)
-	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-	// TODO return id
-	c.JSON(http.StatusOK, gin.H{"id": id})
-}
-
 func (h *Handler) createMeal(c *gin.Context) {
 	userId, err := getUserId(c)
 	if err != nil {

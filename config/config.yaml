@@ -14,3 +14,8 @@ db:
 #  password: qwerty
   DBName: postgres
   SSLMode: disable
+
+cloudinary:
+    cloud_name: dlbd49n12
+    api_key: 586786754446727
+    api_secret: ko8XzWvDrVGu8-ELbXcYLGRYBtY
