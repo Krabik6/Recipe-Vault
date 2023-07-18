@@ -34,15 +34,6 @@ type Schedule interface {
 	CreateMeal(userId int, meal models.Meal) (int, error)
 }
 
-type Ingredients interface {
-	CreateIngredient(userId int, ingredient models.Ingredient) (int, error)
-	GetIngredientById(userId, id int) (models.IngredientOutput, error)
-	GetAllIngredients(userId int) ([]models.Ingredient, error)
-	GetPublicIngredients() ([]models.Ingredient, error)
-	UpdateIngredient(userId, id int, input models.UpdateIngredientInput) error
-	DeleteIngredient(userId, id int) error
-}
-
 type ImageUploader interface {
 	UploadImage(ctx context.Context, imageFile *multipart.FileHeader) (string, error)
 }
@@ -51,7 +42,6 @@ type Service struct {
 	Authorization
 	Recipes
 	Schedule
-	Ingredients
 }
 
 //repos *Repository.Repository
@@ -61,6 +51,5 @@ func NewService(repos *repository.Repository, uploader ImageUploader) *Service {
 		Authorization: NewAuthService(repos.Authorization),
 		Recipes:       NewRecipesService(repos.Recipes, uploader),
 		Schedule:      NewScheduleService(repos.Schedule),
-		Ingredients:   NewIngredientsService(repos.Ingredient),
 	}
 }

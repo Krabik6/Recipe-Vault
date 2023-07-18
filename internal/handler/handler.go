@@ -35,16 +35,6 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			recipes.GET("/filter", h.getFilteredRecipes)
 			recipes.GET("/userFilter", h.getFilteredUserRecipes)
 		}
-
-		ingredients := api.Group("/ingredients")
-		{
-			ingredients.POST("/", h.createIngredient)
-			ingredients.GET("/", h.getAllIngredients)
-			ingredients.GET("/:id", h.getIngredientById)
-			ingredients.PUT("/:id", h.updateIngredient)
-			ingredients.DELETE("/:id", h.deleteIngredient)
-			ingredients.GET("/public", h.getPublicIngredients)
-		}
 		schedule := api.Group("/schedule")
 		{
 			schedule.POST("/", h.createMeal)
