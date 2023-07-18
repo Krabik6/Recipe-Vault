@@ -29,20 +29,10 @@ type Schedule interface {
 	CreateMeal(userId int, meal models.Meal) (int, error)
 }
 
-type Ingredient interface {
-	CreateIngredient(userId int, ingredient models.Ingredient) (int, error)
-	GetIngredientById(userId, id int) (models.IngredientOutput, error)
-	GetAllIngredients(userId int) ([]models.Ingredient, error)
-	GetPublicIngredients() ([]models.Ingredient, error)
-	UpdateIngredient(userId, id int, input models.UpdateIngredientInput) error
-	DeleteIngredient(userId, id int) error
-}
-
 type Repository struct {
 	Authorization
 	Recipes
 	Schedule
-	Ingredient
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
@@ -50,6 +40,5 @@ func NewRepository(db *sqlx.DB) *Repository {
 		Authorization: NewAuthPostgres(db),
 		Recipes:       NewRecipesPostgres(db),
 		Schedule:      NewSchedulePostgres(db),
-		Ingredient:    NewIngredientsPostgres(db),
 	}
 }

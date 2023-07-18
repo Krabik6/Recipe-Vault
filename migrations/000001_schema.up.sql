@@ -6,15 +6,6 @@ CREATE TABLE users
     "password_hash" TEXT not null
 );
 
-CREATE TABLE ingredients
-(
-    "id" serial primary key,
-    "name" text not null,
-    "description" text,
-    "user_id" int references users (id) on delete cascade not null,
-    "public" bool not null default(false)
-);
-
 CREATE TYPE healthy_level AS ENUM ('1', '2', '3');
 
 create table recipes
@@ -33,19 +24,49 @@ create table recipes
     "imageURLs"     text[]
 );
 
+CREATE TABLE units (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE ingredients (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    price NUMERIC(10, 2) NOT NULL,
+    unit_id INTEGER REFERENCES units(id),
+    protein NUMERIC(10, 2),
+    fat NUMERIC(10, 2),
+    carbs NUMERIC(10, 2),
+    aisle TEXT,
+    image TEXT,
+    categoryPath TEXT[],
+    consistency TEXT
+);
+
+
+CREATE TABLE recipe_ingredients (
+    id SERIAL PRIMARY KEY,
+    recipe_id INTEGER REFERENCES recipes(id),
+    ingredient_id INTEGER REFERENCES ingredients(id),
+    amount NUMERIC(10, 2) NOT NULL,
+    unit TEXT,
+    price NUMERIC(10, 2)
+);
+
+
+
+CREATE TABLE unit_ingredient (
+    id SERIAL PRIMARY KEY,
+    unit_id INTEGER REFERENCES units(id),
+    ingredient_id INTEGER REFERENCES ingredients(id)
+);
+
 
 CREATE TABLE recipe_images
 (
     "id" serial primary key,
     "recipe_id" int references recipes (id) on delete cascade not null,
     "image_data" bytea
-);
-
-
-
-CREATE TABLE recipe_ingredients(
-        "recipeId" int references recipes (id) on delete cascade not null,
-        "ingredientId" int references ingredients (id) on delete cascade not null
 );
 
 CREATE TABLE meal

@@ -1,14 +1,21 @@
 package models
 
 type Recipe struct {
-	Id            int      `json:"id,omitempty" db:"id"`
-	Title         string   `json:"title,omitempty" db:"title"`
-	Description   string   `json:"description,omitempty" db:"description"`
-	IsPublic      bool     `json:"public,omitempty" db:"public"`
-	Cost          float64  `json:"cost,omitempty" db:"cost"`
-	TimeToPrepare int64    `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
-	Healthy       int64    `json:"healthy,omitempty" db:"healthy"`
-	ImageURLs     []string `json:"imageURLs,omitempty" db:"imageURLs"`
+	Id            int          `json:"id,omitempty" db:"id"`
+	Title         string       `json:"title,omitempty" db:"title"`
+	Description   string       `json:"description,omitempty" db:"description"`
+	IsPublic      bool         `json:"public,omitempty" db:"public"`
+	Cost          float64      `json:"cost,omitempty" db:"cost"`
+	TimeToPrepare int64        `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
+	Healthy       int64        `json:"healthy,omitempty" db:"healthy"`
+	ImageURLs     []string     `json:"imageURLs,omitempty" db:"imageURLs"`
+	Ingredients   []Ingredient `json:"ingredients"`
+}
+
+type Ingredient struct {
+	Name     string  `json:"name"`
+	Quantity float64 `json:"quantity"`
+	Unit     string  `json:"unit"`
 }
 
 type UpdateRecipeInput struct {
@@ -47,29 +54,6 @@ type User struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
-
-type Ingredient struct {
-	Id          int    `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	IsPublic    bool   `json:"isPublic" db:"public"`
-}
-
-type IngredientOutput struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	IsPublic    bool   `json:"isPublic" db:"public"`
-}
-
-type UpdateIngredientInput struct {
-	Title       *string `json:"title"`
-	Description *string `json:"description"`
-	IsPublic    *bool   `json:"isPublic" db:"public"`
-}
-
-//"name" varchar, --завтрак
-//"at_time" timestamp not null, -- 10.04.2045, 10:00 по мск
-//"user_id"
 
 type Meal struct {
 	Name    string `json:"name,omitempty"`
