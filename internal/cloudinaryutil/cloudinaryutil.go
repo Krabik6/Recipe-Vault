@@ -5,7 +5,7 @@ import (
 	"context"
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
-	"io/ioutil"
+	"io"
 	"mime/multipart"
 )
 
@@ -19,15 +19,18 @@ func NewCloudinaryClient(cloudName, apiKey, apiSecret string) *CloudinaryClient 
 		client: client,
 	}
 }
-
 func (c *CloudinaryClient) UploadImage(ctx context.Context, imageFile *multipart.FileHeader) (string, error) {
 	src, err := imageFile.Open()
 	if err != nil {
 		return "", err
 	}
-	defer src.Close()
+	defer func() {
+		if cerr := src.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
-	imageData, err := ioutil.ReadAll(src)
+	imageData, err := io.ReadAll(src)
 	if err != nil {
 		return "", err
 	}

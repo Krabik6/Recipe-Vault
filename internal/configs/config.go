@@ -33,6 +33,10 @@ type Config struct {
 		APIKey    string `yaml:"api_key"`
 		APISecret string `yaml:"api_secret"`
 	} `yaml:"cloudinary"`
+	Spoonacular struct {
+		BaseURL string `yaml:"base_url"`
+		APIKey  string `yaml:"api_key"`
+	} `yaml:"spoonacular"`
 }
 
 func (cfg *Config) initENV() error {

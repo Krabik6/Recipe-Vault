@@ -17,17 +17,14 @@ type RecipesPostgres struct {
 func NewRecipesPostgres(db *sqlx.DB) *RecipesPostgres {
 	return &RecipesPostgres{db: db}
 }
-func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) (int, error) {
-	db := r.db
-
+func (r *RecipesPostgres) CreateRecipeTx(tx *sqlx.Tx, userId int, recipe models.Recipe) (int, error) {
 	addRecipeQuery := fmt.Sprintf(`INSERT INTO %s 
-		(title, description, user_id, public, "cost", "timeToPrepare", "healthy", "imageURLs")
+		("title", "description", "user_id", "public", "cost", "timeToPrepare", "healthy", "imageURLs")
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
 		RETURNING id`,
 		recipeTable)
 
-	row := db.QueryRow(addRecipeQuery, recipe.Title, recipe.Description, userId, recipe.IsPublic, recipe.Cost, recipe.TimeToPrepare, recipe.Healthy, pq.Array(recipe.ImageURLs))
-
+	row := tx.QueryRow(addRecipeQuery, recipe.Title, recipe.Description, userId, recipe.IsPublic, recipe.Cost, recipe.TimeToPrepare, recipe.Healthy, pq.Array(recipe.ImageURLs))
 	var id int
 	if err := row.Scan(&id); err != nil {
 		return 0, err
@@ -36,10 +33,45 @@ func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe) (int, e
 	return id, nil
 }
 
-func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
+func (r *RecipesPostgres) CreateRecipe(userId int, recipe models.Recipe, ingredients []models.Ingredient) (int, error) {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return 0, err
+	}
+
+	recipeID, err := r.CreateRecipeTx(tx, userId, recipe)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	for _, ingredient := range ingredients {
+		ingredientID, err := r.AddOrUpdateIngredientTx(tx, ingredient)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+		ingredient.ID = ingredientID
+
+		err = r.AddRecipeIngredientTx(tx, recipeID, ingredient, ingredient.Amount)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return 0, err
+	}
+
+	return recipeID, nil
+}
+
+func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.RecipeOutput, error) {
 	db := r.db
 
-	output := models.Recipe{}
+	output := models.RecipeOutput{}
 	getRecipeByIdQuery := fmt.Sprintf(`
 		SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs"
 		FROM %s AS rt
@@ -64,8 +96,61 @@ func (r *RecipesPostgres) GetRecipeById(userId, id int) (models.Recipe, error) {
 		return output, err
 	}
 
+	// Получение ингредиентов
+	ingredients, err := r.GetIngredientsByRecipeId(id)
+	if err != nil {
+		return output, err
+	}
+
+	output.IngredientOutputs = ingredients
+
 	return output, nil
 }
+func (r *RecipesPostgres) GetIngredientsByRecipeId(recipeId int) ([]models.IngredientOutput, error) {
+	db := r.db
+
+	var ingredients []models.IngredientOutput
+	getIngredientsQuery := fmt.Sprintf(`
+		SELECT i."id", i."name", i."price", i."unit", i."unitShort", i."unitLong", i."protein", i."fat", i."carbs", i."aisle", i."image", i."consistency", i."external_id", ri."amount", i."possible_units", i."categoryPath"
+		FROM %s AS i
+		INNER JOIN %s AS ri ON i."id" = ri."ingredient_id"
+		WHERE ri."recipe_id" = $1`, ingredientsTable, recipeIngredientsTable)
+
+	rows, err := db.Queryx(getIngredientsQuery, recipeId)
+	if err != nil {
+		return ingredients, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var ingredient models.IngredientOutput
+		err = rows.Scan(
+			&ingredient.ID,
+			&ingredient.Name,
+			&ingredient.Price,
+			&ingredient.Unit,
+			&ingredient.UnitShort,
+			&ingredient.UnitLong,
+			&ingredient.Protein,
+			&ingredient.Fat,
+			&ingredient.Carbs,
+			&ingredient.Aisle,
+			&ingredient.Image,
+			&ingredient.Consistency,
+			&ingredient.ExternalID,
+			&ingredient.Amount,
+			pq.Array(&ingredient.PossibleUnits),
+			pq.Array(&ingredient.CategoryPath),
+		)
+		if err != nil {
+			return ingredients, err
+		}
+		ingredients = append(ingredients, ingredient)
+	}
+
+	return ingredients, nil
+}
+
 func (r *RecipesPostgres) GetFilteredRecipes(input models.RecipesFilter) ([]models.Recipe, error) {
 	db := r.db
 
@@ -244,14 +329,17 @@ func (r *RecipesPostgres) GetFilteredUserRecipes(userId int, input models.Recipe
 	return output, nil
 }
 
-func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
+func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.RecipeOutput, error) {
 	db := r.db
 
-	var output []models.Recipe
+	var output []models.RecipeOutput
 	getAllRecipeQuery := fmt.Sprintf(`
-		SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs"
+		SELECT rt."id", rt."title", rt."description", rt."public", rt."cost", rt."timeToPrepare", rt."healthy", rt."imageURLs", 
+		i.*, ri."amount"
 		FROM %s AS rt
-		WHERE rt."user_id" = $1`, recipeTable)
+		INNER JOIN %s AS ri ON rt."id" = ri."recipe_id"
+		INNER JOIN %s AS i ON ri."ingredient_id" = i."id"
+		WHERE rt."user_id" = $1`, recipeTable, recipeIngredientsTable, ingredientsTable)
 
 	rows, err := db.Queryx(getAllRecipeQuery, userId)
 	if err != nil {
@@ -259,8 +347,11 @@ func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 	}
 	defer rows.Close()
 
+	recipeMap := make(map[int]*models.RecipeOutput)
+
 	for rows.Next() {
-		var recipe models.Recipe
+		var recipe models.RecipeOutput
+		var ingredient models.IngredientOutput
 		err := rows.Scan(
 			&recipe.Id,
 			&recipe.Title,
@@ -270,11 +361,37 @@ func (r *RecipesPostgres) GetAllRecipes(userId int) ([]models.Recipe, error) {
 			&recipe.TimeToPrepare,
 			&recipe.Healthy,
 			pq.Array(&recipe.ImageURLs),
+			&ingredient.ID,
+			&ingredient.Name,
+			&ingredient.Price,
+			&ingredient.Unit,
+			pq.Array(&ingredient.PossibleUnits),
+			&ingredient.UnitShort,
+			&ingredient.UnitLong,
+			&ingredient.Protein,
+			&ingredient.Fat,
+			&ingredient.Carbs,
+			&ingredient.Aisle,
+			&ingredient.Image,
+			pq.Array(&ingredient.CategoryPath),
+			&ingredient.Consistency,
+			&ingredient.ExternalID,
+			&ingredient.Amount,
 		)
 		if err != nil {
 			return nil, err
 		}
-		output = append(output, recipe)
+
+		if existingRecipe, exists := recipeMap[recipe.Id]; exists {
+			existingRecipe.IngredientOutputs = append(existingRecipe.IngredientOutputs, ingredient)
+		} else {
+			recipe.IngredientOutputs = append(recipe.IngredientOutputs, ingredient)
+			recipeMap[recipe.Id] = &recipe
+		}
+	}
+
+	for _, recipe := range recipeMap {
+		output = append(output, *recipe)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -324,18 +441,26 @@ func (r *RecipesPostgres) GetPublicRecipes() ([]models.Recipe, error) {
 	return output, nil
 }
 
-func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error {
+func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe) error {
 	db := r.db
+
+	// Start a new transaction
+	tx, err := db.Beginx()
+	if err != nil {
+		return err
+	}
 
 	// Check if the recipe belongs to the user
 	recipeExistsQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE id = $1 AND user_id = $2`, recipeTable)
 	var count int
-	err := db.Get(&count, recipeExistsQuery, id, userId)
+	err = tx.Get(&count, recipeExistsQuery, id, userId)
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
 	if count == 0 {
 		// Recipe does not exist or does not belong to the user
+		tx.Rollback()
 		return errors.New("recipe not found or not owned by the user")
 	}
 
@@ -389,17 +514,64 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 	setQuery := strings.Join(setValues, ", ")
 
 	query := fmt.Sprintf(`UPDATE %s SET %s WHERE "id"=%d AND "user_id"=%d`, recipeTable, setQuery, id, userId)
-	fmt.Println(query)
-	args = append(args)
+	_, err = tx.Exec(query, args...)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	_, err = db.Exec(query, args...)
+	// Remove all existing ingredient relationships
+	err = r.RemoveAllRecipeIngredientsTx(tx, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	return err
+	// Add new ingredient relationships
+	for _, ingredient := range input.Ingredients {
+		err = r.AddRecipeIngredientTx(tx, id, ingredient, ingredient.Amount)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *RecipesPostgres) DeleteRecipe(userId, id int) error {
-	query := fmt.Sprintf(`DELETE FROM %s WHERE "id"=$1 and "user_id"=$2 `, recipeTable)
-	_, err := r.db.Exec(query, id, userId)
-	return err
+	// Start a new transaction
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return err
+	}
 
+	// Delete all ingredient relationships for the recipe
+	err = r.RemoveAllRecipeIngredientsTx(tx, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete the recipe
+	query := fmt.Sprintf(`DELETE FROM %s WHERE "id"=$1 and "user_id"=$2 `, recipeTable)
+	_, err = tx.Exec(query, id, userId)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

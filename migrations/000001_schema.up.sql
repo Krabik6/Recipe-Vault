@@ -6,68 +6,51 @@ CREATE TABLE users
     "password_hash" TEXT not null
 );
 
-CREATE TYPE healthy_level AS ENUM ('1', '2', '3');
-
 create table recipes
 (
-    id              serial
+    "id"              serial
         primary key,
-    title           text                                     not null,
-    description     text                                     not null,
-    user_id         integer                                  not null
+    "title"           text                                     not null,
+    "description"     text                                     not null,
+    "user_id"         integer                                  not null
         references users
             on delete cascade,
-    public          boolean       default false              not null,
-    cost            numeric       default 0                  not null,
+    "public"          boolean       default false              not null,
+    "cost"            numeric       default 0                  not null,
     "timeToPrepare" integer       default 0,
-    healthy         healthy_level default '2'::healthy_level not null,
+    "healthy"         integer default 0 not null,
     "imageURLs"     text[]
 );
 
-CREATE TABLE units (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-);
-
 CREATE TABLE ingredients (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    price NUMERIC(10, 2) NOT NULL,
-    unit_id INTEGER REFERENCES units(id),
-    protein NUMERIC(10, 2),
-    fat NUMERIC(10, 2),
-    carbs NUMERIC(10, 2),
-    aisle TEXT,
-    image TEXT,
-    categoryPath TEXT[],
-    consistency TEXT
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "price" NUMERIC(10, 2) NOT NULL DEFAULT 0.0,
+    "unit" TEXT NOT NULL DEFAULT '',
+    "possible_units" text[] NOT NULL DEFAULT '{}',
+    "unitShort" text NOT NULL DEFAULT '',
+    "unitLong" text NOT NULL DEFAULT '',
+    "protein" NUMERIC(10, 2) NOT NULL DEFAULT 0.0,
+    "fat" NUMERIC(10, 2) NOT NULL DEFAULT 0.0,
+    "carbs" NUMERIC(10, 2) NOT NULL DEFAULT 0.0,
+    "aisle" TEXT NOT NULL DEFAULT '',
+    "image" TEXT NOT NULL DEFAULT '',
+    "categoryPath" TEXT[] NOT NULL DEFAULT '{}',
+    "consistency" TEXT NOT NULL DEFAULT '',
+    "external_id" int NOT NULL DEFAULT 0
 );
 
 
 CREATE TABLE recipe_ingredients (
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER REFERENCES recipes(id),
-    ingredient_id INTEGER REFERENCES ingredients(id),
-    amount NUMERIC(10, 2) NOT NULL,
-    unit TEXT,
-    price NUMERIC(10, 2)
+    "id" SERIAL PRIMARY KEY,
+    "recipe_id" INTEGER NOT NULL REFERENCES recipes(id),
+    "ingredient_id" INTEGER NOT NULL REFERENCES ingredients(id),
+    "amount" NUMERIC(10, 2) NOT NULL DEFAULT 0.0,
+    "unit" TEXT NOT NULL DEFAULT '',
+    "price" NUMERIC(10, 2) NOT NULL DEFAULT 0.0
 );
 
 
-
-CREATE TABLE unit_ingredient (
-    id SERIAL PRIMARY KEY,
-    unit_id INTEGER REFERENCES units(id),
-    ingredient_id INTEGER REFERENCES ingredients(id)
-);
-
-
-CREATE TABLE recipe_images
-(
-    "id" serial primary key,
-    "recipe_id" int references recipes (id) on delete cascade not null,
-    "image_data" bytea
-);
 
 CREATE TABLE meal
 (

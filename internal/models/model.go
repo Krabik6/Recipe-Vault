@@ -1,34 +1,5 @@
 package models
 
-type Recipe struct {
-	Id            int          `json:"id,omitempty" db:"id"`
-	Title         string       `json:"title,omitempty" db:"title"`
-	Description   string       `json:"description,omitempty" db:"description"`
-	IsPublic      bool         `json:"public,omitempty" db:"public"`
-	Cost          float64      `json:"cost,omitempty" db:"cost"`
-	TimeToPrepare int64        `json:"timeToPrepare,omitempty" db:"timeToPrepare"`
-	Healthy       int64        `json:"healthy,omitempty" db:"healthy"`
-	ImageURLs     []string     `json:"imageURLs,omitempty" db:"imageURLs"`
-	Ingredients   []Ingredient `json:"ingredients"`
-}
-
-type Ingredient struct {
-	Name     string  `json:"name"`
-	Quantity float64 `json:"quantity"`
-	Unit     string  `json:"unit"`
-}
-
-type UpdateRecipeInput struct {
-	Id            *int      `json:"id,omitempty" db:"id"`
-	Title         *string   `json:"title"`
-	Description   *string   `json:"description"`
-	IsPublic      *bool     `json:"isPublic" db:"public"`
-	Cost          *float64  `json:"cost,omitempty"`
-	TimeToPrepare *int      `json:"timeToPrepare,omitempty"`
-	Healthy       *int      `json:"healthy,omitempty"`
-	ImageURLs     *[]string `json:"imageURLs,omitempty"`
-}
-
 // date_of
 // breakfast_id
 // lunch_id

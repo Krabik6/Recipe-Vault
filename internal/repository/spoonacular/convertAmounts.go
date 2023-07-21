@@ -3,18 +3,12 @@ package spoonacular
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Krabik6/meal-schedule/internal/models"
 	"io/ioutil"
 	"net/http"
 )
 
-type ConversionResult struct {
-	SourceAmount float64 `json:"sourceAmount"`
-	SourceUnit   string  `json:"sourceUnit"`
-	TargetAmount float64 `json:"targetAmount"`
-	TargetUnit   string  `json:"targetUnit"`
-}
-
-func (api *SpoonacularAPI) ConvertAmounts(ingredientName string, sourceAmount float64, sourceUnit string, targetUnit string) (*ConversionResult, error) {
+func (api *SpoonacularAPI) ConvertAmounts(ingredientName string, sourceAmount float64, sourceUnit string, targetUnit string) (*models.ConversionResult, error) {
 	url := fmt.Sprintf("%s/food/ingredients/convert?ingredientName=%s&sourceAmount=%f&sourceUnit=%s&targetUnit=%s&apiKey=%s", api.BaseURL, ingredientName, sourceAmount, sourceUnit, targetUnit, api.APIKey)
 
 	resp, err := http.Get(url)
@@ -28,7 +22,7 @@ func (api *SpoonacularAPI) ConvertAmounts(ingredientName string, sourceAmount fl
 		return nil, err
 	}
 
-	var conversionResult ConversionResult
+	var conversionResult models.ConversionResult
 	err = json.Unmarshal(body, &conversionResult)
 	if err != nil {
 		return nil, err

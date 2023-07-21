@@ -16,6 +16,7 @@ const (
 	mealTable              = "meal"
 	mealTemplateTable      = "meal_template"
 	mealRecipesTable       = "mealRecipes"
+	ingredientTable        = "ingredients"
 )
 
 type Config struct {

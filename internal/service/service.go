@@ -16,9 +16,9 @@ type Authorization interface {
 }
 
 type Recipes interface {
-	CreateRecipe(userId int, recipe models.Recipe, imageFiles []*multipart.FileHeader) (int, error)
-	GetRecipeById(userId, id int) (models.Recipe, error)
-	GetAllRecipes(userId int) ([]models.Recipe, error)
+	CreateRecipe(userId int, recipeInput models.RecipeInput, imageFiles []*multipart.FileHeader) (int, error)
+	GetRecipeById(userId, id int) (models.RecipeOutput, error)
+	GetAllRecipes(userId int) ([]models.RecipeOutput, error)
 	UpdateRecipe(userId, id int, input models.UpdateRecipeInput, imageFiles []*multipart.FileHeader) error
 	DeleteRecipe(userId, id int) error
 	GetPublicRecipes() ([]models.Recipe, error)
@@ -49,7 +49,7 @@ type Service struct {
 func NewService(repos *repository.Repository, uploader ImageUploader) *Service {
 	return &Service{
 		Authorization: NewAuthService(repos.Authorization),
-		Recipes:       NewRecipesService(repos.Recipes, uploader),
+		Recipes:       NewRecipesService(repos.Recipes, repos.SpoonacularAPI, repos.Ingredients, uploader),
 		Schedule:      NewScheduleService(repos.Schedule),
 	}
 }

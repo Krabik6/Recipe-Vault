@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"github.com/Krabik6/meal-schedule/internal/models"
 	"github.com/gin-gonic/gin"
 	"mime/multipart"
@@ -32,14 +33,28 @@ func (h *Handler) createRecipe(c *gin.Context) {
 		imageFiles[i] = file
 	}
 
-	// Create an instance of the Recipe struct with the input data
-	recipe := models.Recipe{
-		Title:         c.PostForm("title"),
-		Description:   c.PostForm("description"),
-		IsPublic:      c.PostForm("public") == "true",
-		Cost:          parseStringToFloat64(c.PostForm("cost")),
-		TimeToPrepare: parseStringToInt64(c.PostForm("timeToPrepare")),
-		Healthy:       parseStringToInt64(c.PostForm("healthy")),
+	// Получите строку JSON из формы
+	ingredientsJSON := c.PostForm("ingredients")
+
+	// Создайте пустой массив для ингредиентов
+	var ingredientInputs []models.IngredientInput
+
+	// Декодируйте строку JSON обратно в массив
+	err = json.Unmarshal([]byte(ingredientsJSON), &ingredientInputs)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Теперь у вас есть массив ingredientInputs, который вы можете использовать
+	recipe := models.RecipeInput{
+		Title:            c.PostForm("title"),
+		Description:      c.PostForm("description"),
+		IsPublic:         c.PostForm("public") == "true",
+		Cost:             parseStringToFloat64(c.PostForm("cost")),
+		TimeToPrepare:    parseStringToInt64(c.PostForm("timeToPrepare")),
+		Healthy:          parseStringToInt64(c.PostForm("healthy")),
+		IngredientInputs: ingredientInputs,
 	}
 
 	// Create the recipe in the service
@@ -275,14 +290,27 @@ func (h *Handler) updateRecipe(c *gin.Context) {
 		imageFiles[i] = file
 	}
 
+	// Получите строку JSON из формы
+	ingredientsJSON := c.PostForm("ingredients")
+	// Создайте пустой массив для ингредиентов
+	var ingredientInputs []models.IngredientInput
+
+	// Декодируйте строку JSON обратно в массив
+	err = json.Unmarshal([]byte(ingredientsJSON), &ingredientInputs)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	// Create an instance of the UpdateRecipeInput struct with the input data
 	input := models.UpdateRecipeInput{
-		Title:         getStringValue(c, "title"),
-		Description:   getStringValue(c, "description"),
-		IsPublic:      getBoolValue(c, "public"),
-		Cost:          getFloat64Value(c, "cost"),
-		TimeToPrepare: getIntValue(c, "timeToPrepare"),
-		Healthy:       getIntValue(c, "healthy"),
+		Title:            getStringValue(c, "title"),
+		Description:      getStringValue(c, "description"),
+		IsPublic:         getBoolValue(c, "public"),
+		Cost:             getFloat64Value(c, "cost"),
+		TimeToPrepare:    getIntValue(c, "timeToPrepare"),
+		Healthy:          getIntValue(c, "healthy"),
+		IngredientInputs: &ingredientInputs,
 	}
 
 	// Update the recipe in the service

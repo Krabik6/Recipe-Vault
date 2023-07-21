@@ -10,15 +10,28 @@ type Authorization interface {
 	GetUser(username, password string) (models.User, error)
 }
 
+type SpoonacularAPI interface {
+	SearchIngredient(Query string) (models.IngredientSearchResponse, error)
+	GetIngredientInfo(id int, options *models.IngredientInfoOptions) (*models.IngredientAPIResponse, error)
+	ExtractIngredient(text string) (*models.ExtractedIngredient, error)
+	ConvertAmounts(ingredientName string, sourceAmount float64, sourceUnit string, targetUnit string) (*models.ConversionResult, error)
+}
+
 type Recipes interface {
-	CreateRecipe(userId int, recipe models.Recipe) (int, error)
-	GetRecipeById(userId, id int) (models.Recipe, error)
-	GetAllRecipes(userId int) ([]models.Recipe, error)
-	UpdateRecipe(userId, id int, input models.UpdateRecipeInput) error
+	CreateRecipe(userId int, recipe models.Recipe, ingredients []models.Ingredient) (int, error)
+	GetRecipeById(userId, id int) (models.RecipeOutput, error)
+	GetAllRecipes(userId int) ([]models.RecipeOutput, error)
+	UpdateRecipe(userId, id int, input models.UpdateRecipe) error
 	DeleteRecipe(userId, id int) error
 	GetPublicRecipes() ([]models.Recipe, error)
 	GetFilteredRecipes(input models.RecipesFilter) ([]models.Recipe, error)
 	GetFilteredUserRecipes(userId int, input models.RecipesFilter) ([]models.Recipe, error)
+}
+
+type Ingredients interface {
+	GetIngredientByName(name string) (models.Ingredient, error)
+	AddIngredient(ingredient models.Ingredient) (int, error)
+	AddRecipeIngredient(recipeId int, ingredient models.Ingredient, amount float64) error
 }
 
 type Schedule interface {
@@ -33,12 +46,15 @@ type Repository struct {
 	Authorization
 	Recipes
 	Schedule
+	SpoonacularAPI
+	Ingredients
 }
 
-func NewRepository(db *sqlx.DB) *Repository {
+func NewRepository(db *sqlx.DB, SpoonacularAPI SpoonacularAPI) *Repository {
 	return &Repository{
-		Authorization: NewAuthPostgres(db),
-		Recipes:       NewRecipesPostgres(db),
-		Schedule:      NewSchedulePostgres(db),
+		Authorization:  NewAuthPostgres(db),
+		Recipes:        NewRecipesPostgres(db),
+		Schedule:       NewSchedulePostgres(db),
+		SpoonacularAPI: SpoonacularAPI,
 	}
 }

@@ -19,3 +19,6 @@ cloudinary:
     cloud_name: dlbd49n12
     api_key: 586786754446727
     api_secret: ko8XzWvDrVGu8-ELbXcYLGRYBtY
+spoonacular:
+  base_url: https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com
+  api_key: c1530e6bffmsh1a01832f53e530ap1b283ejsneded24b79e46
