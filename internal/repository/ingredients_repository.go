@@ -29,7 +29,6 @@ func (r *RecipesPostgres) AddRecipeIngredientTx(tx *sqlx.Tx, recipeId int, ingre
 		INSERT INTO %s (recipe_id, ingredient_id, amount, unit, price)
 		VALUES ($1, $2, $3, $4, $5)`,
 		recipeIngredientsTable)
-
 	_, err := tx.Exec(addRecipeIngredientQuery, recipeId, ingredient.ID, amount, ingredient.Unit, ingredient.Price)
 	if err != nil {
 		return err

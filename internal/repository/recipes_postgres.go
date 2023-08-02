@@ -441,7 +441,7 @@ func (r *RecipesPostgres) GetPublicRecipes() ([]models.Recipe, error) {
 	return output, nil
 }
 
-func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe) error {
+func (r *RecipesPostgres) UpdateRecipe(userId, recipeId int, input models.UpdateRecipe) error {
 	db := r.db
 
 	// Start a new transaction
@@ -453,7 +453,7 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 	// Check if the recipe belongs to the user
 	recipeExistsQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE id = $1 AND user_id = $2`, recipeTable)
 	var count int
-	err = tx.Get(&count, recipeExistsQuery, id, userId)
+	err = tx.Get(&count, recipeExistsQuery, recipeId, userId)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -513,7 +513,7 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 
 	setQuery := strings.Join(setValues, ", ")
 
-	query := fmt.Sprintf(`UPDATE %s SET %s WHERE "id"=%d AND "user_id"=%d`, recipeTable, setQuery, id, userId)
+	query := fmt.Sprintf(`UPDATE %s SET %s WHERE "id"=%d AND "user_id"=%d`, recipeTable, setQuery, recipeId, userId)
 	_, err = tx.Exec(query, args...)
 	if err != nil {
 		tx.Rollback()
@@ -521,15 +521,21 @@ func (r *RecipesPostgres) UpdateRecipe(userId, id int, input models.UpdateRecipe
 	}
 
 	// Remove all existing ingredient relationships
-	err = r.RemoveAllRecipeIngredientsTx(tx, id)
+	err = r.RemoveAllRecipeIngredientsTx(tx, recipeId)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// Add new ingredient relationships
 	for _, ingredient := range input.Ingredients {
-		err = r.AddRecipeIngredientTx(tx, id, ingredient, ingredient.Amount)
+		ingredientID, err := r.AddOrUpdateIngredientTx(tx, ingredient)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		ingredient.ID = ingredientID
+
+		err = r.AddRecipeIngredientTx(tx, recipeId, ingredient, ingredient.Amount)
 		if err != nil {
 			tx.Rollback()
 			return err
